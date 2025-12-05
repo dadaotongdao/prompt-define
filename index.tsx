@@ -239,6 +239,43 @@ const BookmarkIcon = ({ className, filled }: { className?: string; filled?: bool
   </svg>
 );
 
+const LayoutIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+    <line x1="3" x2="21" y1="9" y2="9" />
+    <line x1="9" x2="9" y1="21" y2="9" />
+  </svg>
+);
+
+const PlusIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </svg>
+);
+
 // --- Constants ---
 const DOMAINS = [
   {
@@ -312,6 +349,14 @@ type HistoryItem = {
   result: OptimizationResult;
 };
 
+type TemplateItem = {
+  id: string;
+  name: string;
+  content: string;
+  domain: string;
+  timestamp: number;
+};
+
 // --- Components ---
 
 const App = () => {
@@ -345,7 +390,7 @@ const App = () => {
   
   // Sidebar State
   const [showSidebar, setShowSidebar] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'history' | 'saved'>('history');
+  const [sidebarTab, setSidebarTab] = useState<'history' | 'saved' | 'templates'>('history');
   
   // History State
   const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -366,6 +411,19 @@ const App = () => {
         return [];
     }
   });
+
+  // Templates State
+  const [templates, setTemplates] = useState<TemplateItem[]>(() => {
+    try {
+        const saved = localStorage.getItem("promptRefineTemplates");
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+        return [];
+    }
+  });
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [templateContentToSave, setTemplateContentToSave] = useState("");
 
   // Reset model selection when domain changes to ensure valid model
   useEffect(() => {
@@ -438,6 +496,54 @@ const App = () => {
       setTimeout(() => setSaveStatus(false), 2000);
   };
 
+  const openSaveTemplateModal = (content: string) => {
+    setTemplateContentToSave(content || ""); // Allow empty string for manual entry
+    setNewTemplateName("");
+    setIsTemplateModalOpen(true);
+  };
+
+  const confirmSaveTemplate = () => {
+    if (!newTemplateName.trim() || !templateContentToSave.trim()) return;
+    
+    const newItem: TemplateItem = {
+        id: crypto.randomUUID(),
+        name: newTemplateName.trim(),
+        content: templateContentToSave,
+        domain: selectedDomain,
+        timestamp: Date.now()
+    };
+    
+    const newTemplates = [newItem, ...templates];
+    setTemplates(newTemplates);
+    localStorage.setItem("promptRefineTemplates", JSON.stringify(newTemplates));
+    setIsTemplateModalOpen(false);
+    
+    // Show feedback
+    setSaveStatus(true);
+    setTimeout(() => setSaveStatus(false), 2000);
+  };
+
+  const deleteTemplate = (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      const newTemplates = templates.filter(t => t.id !== id);
+      setTemplates(newTemplates);
+      localStorage.setItem("promptRefineTemplates", JSON.stringify(newTemplates));
+  };
+
+  const loadTemplate = (t: TemplateItem) => {
+      setUserInput(t.content);
+      setSelectedDomain(t.domain);
+      // We don't necessarily change the model, but could if needed.
+      // We clear the result to encourage "using" the template.
+      setResult(null);
+      setGeneratedImage(null);
+      setGeneratedText(null);
+      setGeneratedVideo(null);
+      setIsReverseMode(false);
+      setUploadedImage(null);
+      setShowSidebar(false);
+  };
+
   const removeFromSaved = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     const newSaved = savedPrompts.filter(h => h.id !== id);
@@ -504,7 +610,22 @@ const App = () => {
         
         let systemInstruction = `
           You are an expert Reverse Engineering Prompt Engineer for AI Image Models.
-          Your task is to analyze the input image and deconstruct it into a highly effective text prompt that would generate a similar image.
+          
+          TASK:
+          1. Analyze the uploaded image and first convert it mentally into a detailed JSON structure containing:
+             - "image_analysis": { subject, key_elements, background, lighting, color_palette }
+             - "nano_banana_pro_parameters": { resolution, style, lighting_tech, iso, composition }
+             - "aspect_ratio"
+             
+          2. BASED on this JSON content, SYNTHESIZE the final reverse engineered prompt.
+             - Combine subject, style, lighting, and parameters into a single, cohesive, high-quality prompt string.
+             - Ensure it follows the structure best suited for the target model (e.g., Nano Banana Pro/Gemini 3).
+          
+          OUTPUT REQUIREMENT:
+          You must return a JSON object (as defined in the responseSchema) where:
+          - 'optimizedPrompt': Contains the FINAL SYNTHESIZED TEXT PROMPT (e.g. "Minimalist workspace still life...").
+          - 'explanation': Contains the structured JSON ANALYSIS details you derived in step 1 (formatted as a readable string or JSON string), so the user can see the breakdown.
+          - 'addedTerms': Extract key tags.
           
           TARGET MODEL: ${selectedModel}
         `;
@@ -533,7 +654,7 @@ const App = () => {
              contents: {
                 parts: [
                     { inlineData: { mimeType: 'image/jpeg', data: base64Data } }, // Assuming JPEG/PNG, API handles it
-                    { text: "Analyze this image and write the prompt to generate it." }
+                    { text: "将图像转换为 JSON 提示符，包括大小和详细信息" }
                 ]
              },
              config: {
@@ -542,8 +663,8 @@ const App = () => {
                 responseSchema: {
                   type: Type.OBJECT,
                   properties: {
-                    optimizedPrompt: { type: Type.STRING },
-                    explanation: { type: Type.STRING },
+                    optimizedPrompt: { type: Type.STRING, description: "The final synthesized text prompt based on the analysis." },
+                    explanation: { type: Type.STRING, description: "The detailed JSON analysis of the image (subject, lighting, params)." },
                     addedTerms: { type: Type.ARRAY, items: { type: Type.STRING } },
                   },
                 },
@@ -555,11 +676,10 @@ const App = () => {
             response = await ai.models.generateContent(modelConfig);
         } catch (error: any) {
             // Fallback logic for 503
-            if (error.message && error.message.includes('503')) {
+            if (error.message && (error.message.includes('503') || error.message.includes('500'))) {
                 console.warn("Gemini 3 Pro overloaded, falling back to Gemini 2.5 Flash...");
                 const fallbackConfig = { ...modelConfig, model: 'gemini-2.5-flash' };
                 response = await ai.models.generateContent(fallbackConfig);
-                 // We can append a note to explanation later if needed, but for now just getting result is priority
             } else {
                 throw error;
             }
@@ -830,24 +950,16 @@ const App = () => {
          }
       }
 
-      const prompt = `
-        ${baseInstruction}
-        ${domainInstruction}
-        
-        USER RAW INPUT: "${userInput}"
-        
-        Response Schema:
-        {
-          "optimizedPrompt": "The rewritten prompt string",
-          "explanation": "Why this change helps (explain technical terms)",
-          "addedTerms": ["List", "of", "key", "terms", "added"]
-        }
-      `;
+      // Concatenate for system instruction
+      const fullSystemInstruction = `${baseInstruction}\n${domainInstruction}`;
 
-      const response = await ai.models.generateContent({
+      const modelConfig = {
         model: 'gemini-3-pro-preview',
-        contents: prompt,
+        contents: {
+             parts: [{ text: `User Raw Input: "${userInput}"` }]
+        },
         config: {
+            systemInstruction: fullSystemInstruction,
             responseMimeType: "application/json",
             responseSchema: {
                 type: Type.OBJECT,
@@ -858,12 +970,26 @@ const App = () => {
                 },
             },
         }
-      });
+      };
+
+      let response;
+      try {
+          response = await ai.models.generateContent(modelConfig);
+      } catch (error: any) {
+          // 500/503 fallback
+          if (error.message && (error.message.includes('500') || error.message.includes('503'))) {
+              console.warn("Gemini 3 Pro error (" + error.message + "), falling back to Gemini 2.5 Flash...");
+              const fallbackConfig = { ...modelConfig, model: 'gemini-2.5-flash' };
+              response = await ai.models.generateContent(fallbackConfig);
+          } else {
+              throw error;
+          }
+      }
       
       const json = JSON.parse(response.text || "{}");
       const safeResult = {
         optimizedPrompt: json.optimizedPrompt || "Optimization failed.",
-        explanation: json.explanation || "No explanation provided.",
+        explanation: (json.explanation || "No explanation provided.") + (response.model === 'gemini-2.5-flash' ? " (Generated with fallback model)" : ""),
         addedTerms: Array.isArray(json.addedTerms) ? json.addedTerms : []
       };
 
@@ -1010,6 +1136,55 @@ const App = () => {
   return (
     <div className="flex h-screen bg-neutral-950 text-neutral-200 overflow-hidden font-sans selection:bg-amber-500/30">
       
+      {/* Template Save Modal */}
+      {isTemplateModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 fade-in">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+                <h3 className="text-xl font-bold text-neutral-200 mb-4 flex items-center gap-2">
+                    <LayoutIcon className="w-5 h-5 text-amber-500" />
+                    {templateContentToSave ? 'Save as Template' : 'Add Custom Template'}
+                </h3>
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-xs text-neutral-500 uppercase font-medium">Template Name</label>
+                        <input 
+                            autoFocus
+                            type="text" 
+                            value={newTemplateName}
+                            onChange={(e) => setNewTemplateName(e.target.value)}
+                            placeholder="e.g. Cyberpunk Character Base"
+                            className="w-full mt-1 p-3 rounded-xl bg-black/50 border border-neutral-800 text-neutral-200 focus:ring-2 focus:ring-amber-500/50 outline-none placeholder-neutral-700"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-neutral-500 uppercase font-medium">Prompt Content</label>
+                        <textarea
+                            value={templateContentToSave}
+                            onChange={(e) => setTemplateContentToSave(e.target.value)}
+                            placeholder="Paste your prompt here..."
+                            className="w-full mt-1 p-3 rounded-xl bg-black/20 border border-neutral-800 text-neutral-300 focus:ring-2 focus:ring-amber-500/50 outline-none placeholder-neutral-700 font-mono text-sm h-32 resize-none"
+                        />
+                    </div>
+                    <div className="flex gap-3 mt-6">
+                        <button 
+                            onClick={() => setIsTemplateModalOpen(false)}
+                            className="flex-1 py-3 rounded-xl font-medium text-neutral-400 hover:bg-neutral-800 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={confirmSaveTemplate}
+                            disabled={!newTemplateName.trim() || !templateContentToSave.trim()}
+                            className="flex-1 py-3 rounded-xl font-bold bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Save Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div 
         className={`fixed inset-y-0 right-0 w-80 bg-neutral-900/95 backdrop-blur border-l border-neutral-800 shadow-2xl transform transition-transform duration-300 z-50 ${showSidebar ? 'translate-x-0' : 'translate-x-full'}`}
@@ -1017,8 +1192,13 @@ const App = () => {
         <div className="p-4 h-full flex flex-col">
             <div className="flex justify-between items-center mb-6 border-b border-neutral-800 pb-4">
                 <h2 className="text-lg font-bold text-amber-500 flex items-center gap-2">
-                    {sidebarTab === 'history' ? <ClockIcon className="w-5 h-5"/> : <BookmarkIcon className="w-5 h-5" filled/>} 
-                    {sidebarTab === 'history' ? 'History' : 'Saved Prompts'}
+                    {sidebarTab === 'history' && <ClockIcon className="w-5 h-5"/>}
+                    {sidebarTab === 'saved' && <BookmarkIcon className="w-5 h-5" filled/>}
+                    {sidebarTab === 'templates' && <LayoutIcon className="w-5 h-5" />}
+                    
+                    {sidebarTab === 'history' && 'History'}
+                    {sidebarTab === 'saved' && 'Saved Prompts'}
+                    {sidebarTab === 'templates' && 'Templates'}
                 </h2>
                 <div className="flex gap-2">
                     <button onClick={() => setShowSidebar(false)} className="p-1 hover:text-white transition-colors">
@@ -1031,24 +1211,84 @@ const App = () => {
             <div className="flex mb-4 bg-neutral-800 rounded-lg p-1">
                 <button 
                     onClick={() => setSidebarTab('history')}
-                    className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${sidebarTab === 'history' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-white'}`}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${sidebarTab === 'history' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-white'}`}
                 >
                     Recent
                 </button>
                 <button 
                     onClick={() => setSidebarTab('saved')}
-                    className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${sidebarTab === 'saved' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-white'}`}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${sidebarTab === 'saved' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-white'}`}
                 >
                     Saved
+                </button>
+                <button 
+                    onClick={() => setSidebarTab('templates')}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${sidebarTab === 'templates' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-white'}`}
+                >
+                    Templates
                 </button>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-                {(sidebarTab === 'history' ? history : savedPrompts).length === 0 && (
+                {sidebarTab === 'templates' && (
+                    <div className="space-y-2 mb-3">
+                        <button
+                            onClick={() => openSaveTemplateModal(userInput)}
+                            className="w-full py-2 px-3 bg-neutral-800 hover:bg-neutral-700 border border-dashed border-neutral-600 rounded-lg text-xs text-neutral-400 hover:text-amber-500 transition-colors flex items-center justify-center gap-2"
+                            title="Save current input as a new template"
+                        >
+                            <span className="text-lg leading-none font-light">+</span>
+                            Create Template from Input
+                        </button>
+                        <button
+                            onClick={() => openSaveTemplateModal("")}
+                            className="w-full py-2 px-3 bg-neutral-900 hover:bg-neutral-800 border border-dashed border-neutral-700 rounded-lg text-xs text-neutral-500 hover:text-neutral-300 transition-colors flex items-center justify-center gap-2"
+                            title="Manually paste or type a prompt template"
+                        >
+                            <span className="text-lg leading-none font-light">+</span>
+                            Add Custom Template
+                        </button>
+                    </div>
+                )}
+
+                {sidebarTab === 'templates' && templates.length === 0 && (
+                     <div className="text-neutral-500 text-center text-sm py-8 italic">No templates saved.<br/>Save a prompt result to use it later.</div>
+                )}
+                {(sidebarTab !== 'templates' && (sidebarTab === 'history' ? history : savedPrompts).length === 0) && (
                     <div className="text-neutral-500 text-center text-sm py-8 italic">No items found.</div>
                 )}
                 
-                {(sidebarTab === 'history' ? history : savedPrompts).map((item) => (
+                {/* Templates List */}
+                {sidebarTab === 'templates' && templates.map((item) => (
+                    <div key={item.id} className="group relative bg-neutral-800/50 border border-neutral-800 hover:border-amber-500/50 rounded-lg p-3 cursor-pointer transition-all" onClick={() => loadTemplate(item)}>
+                         <div className="flex justify-between items-start mb-2">
+                             <div className="flex items-center gap-2">
+                                <span className="text-amber-500/80">
+                                    <LayoutIcon className="w-4 h-4"/>
+                                </span>
+                                <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">{item.domain}</span>
+                             </div>
+                             <button 
+                                onClick={(e) => deleteTemplate(e, item.id)}
+                                className="text-neutral-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                             >
+                                 <TrashIcon className="w-4 h-4" />
+                             </button>
+                         </div>
+                         <p className="text-sm text-neutral-200 font-bold mb-1">
+                             {item.name}
+                         </p>
+                         <p className="text-xs text-neutral-400 line-clamp-2 font-mono bg-black/20 p-1.5 rounded">
+                             {item.content}
+                         </p>
+                         <div className="flex justify-end items-center text-[10px] text-neutral-500 mt-2">
+                            <span>{new Date(item.timestamp).toLocaleDateString()}</span>
+                         </div>
+                    </div>
+                ))}
+
+                {/* History/Saved List */}
+                {sidebarTab !== 'templates' && (sidebarTab === 'history' ? history : savedPrompts).map((item) => (
                     <div key={item.id} className="group relative bg-neutral-800/50 border border-neutral-800 hover:border-amber-500/50 rounded-lg p-3 cursor-pointer transition-all" onClick={() => loadHistoryItem(item)}>
                          <div className="flex justify-between items-start mb-2">
                              <div className="flex items-center gap-2">
@@ -1161,9 +1401,26 @@ const App = () => {
 
               {/* Input Area */}
               <div className="space-y-3 fade-in">
-                <label className="text-sm font-medium text-neutral-400 uppercase tracking-wider">
-                    {isReverseMode ? "Upload Reference Image" : "Your Raw Idea"}
-                </label>
+                <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-medium text-neutral-400 uppercase tracking-wider">
+                        {isReverseMode ? "Upload Reference Image" : "Your Raw Idea"}
+                    </label>
+                    {!isReverseMode && (
+                        <button 
+                            onClick={() => openSaveTemplateModal(userInput)}
+                            disabled={!userInput.trim()}
+                            className={`text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all border
+                                ${userInput.trim() 
+                                    ? 'bg-neutral-800 text-amber-500 border-neutral-700 hover:border-amber-500/50 hover:bg-neutral-700 cursor-pointer' 
+                                    : 'bg-transparent text-neutral-600 border-transparent cursor-not-allowed'
+                                }`}
+                            title="Save current text as a reusable template"
+                        >
+                            <LayoutIcon className="w-3.5 h-3.5" />
+                            <span className="font-medium">Save as Template</span>
+                        </button>
+                    )}
+                </div>
                 
                 {isReverseMode ? (
                     // Image Upload UI
@@ -1287,6 +1544,13 @@ const App = () => {
                       Optimized Result
                     </h2>
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => openSaveTemplateModal(result.optimizedPrompt)}
+                        className="p-2 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-amber-500 transition-colors"
+                        title="Save as Template"
+                      >
+                         <LayoutIcon className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={handleSavePrompt}
                         className="p-2 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-amber-500 transition-colors"
