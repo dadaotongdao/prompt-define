@@ -2,72 +2,59 @@ import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 
-// --- Icons (Updated for Dark/Gold Theme context) ---
+// --- Constants & Enums (Refactor Point 2: No Magic Strings) ---
+const DomainId = {
+  IMAGE: 'image',
+  VIDEO: 'video',
+  WRITING: 'writing',
+  CODING: 'coding',
+  GENERAL: 'general',
+} as const;
+
+const ModelId = {
+  // Image
+  NANO_BANANA: 'nano-banana-pro',
+  MIDJOURNEY: 'midjourney',
+  FLUX_2: 'flux-2.0',
+  STABLE_DIFFUSION: 'stable-diffusion',
+  SEEDREAM: 'seedream-4.5',
+  // Video
+  VEO_3_1: 'veo-3.1',
+  SORA_2: 'sora-2.0',
+  // Writing/General
+  GEMINI_3_PRO: 'gemini-3-pro',
+  GEMINI_3: 'gemini-3',
+  CLAUDE_SONNET: 'claude-4.5-sonnet',
+  CLAUDE_OPUS: 'claude-4.5-opus',
+  GPT_5_1: 'gpt-5.1',
+  GROK: 'grok-4.1',
+  KIMI_K2: 'kimi-k2-thinking',
+  QWEN_MAX: 'qwen3-max-thinking',
+  ERNIE: 'ernie-5.0',
+} as const;
+
+// --- Icons ---
 const SparklesIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L12 3Z" />
   </svg>
 );
 
 const CopyIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
   </svg>
 );
 
 const CheckIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
 const ImageIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
     <circle cx="9" cy="9" r="2" />
     <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
@@ -75,89 +62,34 @@ const ImageIcon = ({ className }: { className?: string }) => (
 );
 
 const CodeIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <polyline points="16 18 22 12 16 6" />
     <polyline points="8 6 2 12 8 18" />
   </svg>
 );
 
 const VideoIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="m22 8-6 4 6 4V8Z" />
     <rect width="14" height="12" x="2" y="6" rx="2" ry="2" />
   </svg>
 );
 
 const PenIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
   </svg>
 );
 
 const ClockIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="10" />
     <polyline points="12 6 12 12 16 14" />
   </svg>
 );
 
 const TrashIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M3 6h18" />
     <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
     <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -165,36 +97,14 @@ const TrashIcon = ({ className }: { className?: string }) => (
 );
 
 const XIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M18 6 6 18" />
     <path d="m6 6 12 12" />
   </svg>
 );
 
 const ChipIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect width="18" height="18" x="3" y="3" rx="2" />
     <path d="M15 9h.01" />
     <path d="M9 15h.01" />
@@ -204,18 +114,7 @@ const ChipIcon = ({ className }: { className?: string }) => (
 );
 
 const UploadIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="17 8 12 3 7 8" />
     <line x1="12" x2="12" y1="3" y2="15" />
@@ -223,35 +122,13 @@ const UploadIcon = ({ className }: { className?: string }) => (
 );
 
 const BookmarkIcon = ({ className, filled }: { className?: string; filled?: boolean }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill={filled ? "currentColor" : "none"}
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
   </svg>
 );
 
 const LayoutIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
     <line x1="3" x2="21" y1="9" y2="9" />
     <line x1="9" x2="9" y1="21" y2="9" />
@@ -259,90 +136,35 @@ const LayoutIcon = ({ className }: { className?: string }) => (
 );
 
 const PlusIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 5v14" />
     <path d="M5 12h14" />
   </svg>
 );
 
 const SearchIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="11" cy="11" r="8" />
     <path d="m21 21-4.3-4.3" />
   </svg>
 );
 
 const TagIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
     <path d="M7 7h.01" />
   </svg>
 );
 
 const TrendingUpIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
     <polyline points="17 6 23 6 23 12" />
   </svg>
 );
 
 const AlertIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
     <line x1="12" x2="12" y1="9" y2="13" />
     <line x1="12" x2="12.01" y1="17" y2="17" />
@@ -350,18 +172,7 @@ const AlertIcon = ({ className }: { className?: string }) => (
 );
 
 const LightbulbIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
     <path d="M9 18h6" />
     <path d="M10 22h4" />
@@ -369,18 +180,7 @@ const LightbulbIcon = ({ className }: { className?: string }) => (
 );
 
 const RefreshIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
     <path d="M3 3v5h5" />
     <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
@@ -389,18 +189,7 @@ const RefreshIcon = ({ className }: { className?: string }) => (
 );
 
 const DownloadIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="7 10 12 15 17 10" />
     <line x1="12" x2="12" y1="15" y2="3" />
@@ -408,18 +197,7 @@ const DownloadIcon = ({ className }: { className?: string }) => (
 );
 
 const GlobeIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="10" />
     <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
     <path d="M2 12h20" />
@@ -427,18 +205,7 @@ const GlobeIcon = ({ className }: { className?: string }) => (
 );
 
 const BrainIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
     <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
     <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
@@ -450,35 +217,13 @@ const BrainIcon = ({ className }: { className?: string }) => (
 );
 
 const PlayIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <polygon points="5 3 19 12 5 21 5 3" />
   </svg>
 );
 
 const SpeakerIcon = ({ className }: { className?: string }) => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="M11 5L6 9H2v6h4l5 4V5z" />
       <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
       <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
@@ -486,70 +231,70 @@ const SpeakerIcon = ({ className }: { className?: string }) => (
   );
 
 const ArrowRightIcon = ({ className }: { className?: string }) => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="M5 12h14" />
       <path d="m12 5 7 7-7 7" />
     </svg>
   );
 
 const HelpIcon = ({ className }: { className?: string }) => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <circle cx="12" cy="12" r="10" />
       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
       <path d="M12 17h.01" />
     </svg>
 );
 
-// --- Constants ---
+const LogoIcon = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className={className} fill="none">
+        <defs>
+            <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#d97706" />
+            </linearGradient>
+        </defs>
+        <path d="M50 10 L85 25 L85 75 L50 90 L15 75 L15 25 Z" stroke="url(#logoGradient)" strokeWidth="4" fill="none" />
+        <path d="M50 35 L50 65" stroke="url(#logoGradient)" strokeWidth="4" strokeLinecap="round" />
+        <path d="M35 50 L65 50" stroke="url(#logoGradient)" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="50" cy="50" r="8" fill="url(#logoGradient)" />
+    </svg>
+);
+
+const LinkIcon = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+);
+
+// --- Domain Configuration ---
 const DOMAINS = [
   {
-    id: "image",
+    id: DomainId.IMAGE,
     label: "Image Generation",
     icon: <ImageIcon className="w-5 h-5" />,
     description: "For art, photos, and logos (Midjourney, Nano Banana).",
   },
   {
-    id: "video",
+    id: DomainId.VIDEO,
     label: "Video Creation",
     icon: <VideoIcon className="w-5 h-5" />,
     description: "For cinematic shots, camera motion, and Veo prompts.",
   },
   {
-    id: "writing",
+    id: DomainId.WRITING,
     label: "Creative Writing",
     icon: <PenIcon className="w-5 h-5" />,
     description: "For essays, marketing copy, stories, and blogs.",
   },
   {
-    id: "coding",
+    id: DomainId.CODING,
     label: "Software Engineering",
     icon: <CodeIcon className="w-5 h-5" />,
     description: "For React, Python, and technical problem solving.",
   },
   {
-    id: "general",
+    id: DomainId.GENERAL,
     label: "General Assistant",
     icon: <SparklesIcon className="w-5 h-5" />,
     description: "For any other questions or general tasks.",
@@ -557,26 +302,27 @@ const DOMAINS = [
 ];
 
 const GENERAL_TARGET_MODELS = [
-    { id: "gemini-3-pro", label: "Gemini 3 Pro", description: "Best for huge context & creativity (C.L.E.A.R.)" },
-    { id: "gpt-5.1", label: "GPT-5.1", description: "Best for structured reasoning (KDP)" },
-    { id: "claude-4.5-opus", label: "Claude 4.5 Opus", description: "Best for complex architecture & deep XML structure" },
-    { id: "claude-4.5-sonnet", label: "Claude 4.5 Sonnet", description: "Best for coding, efficiency & input/output specs" },
-    { id: "grok-4.1", label: "Grok-4.1", description: "Best for wit, directness & real-time edge" },
-    { id: "kimi-k2-thinking", label: "Kimi k2 thinking", description: "Best for ultra-long context & analytical trace" },
+    { id: ModelId.GEMINI_3_PRO, label: "Gemini 3 Pro", description: "Best for huge context & creativity (C.L.E.A.R.)" },
+    { id: ModelId.GPT_5_1, label: "GPT-5.1", description: "Best for structured reasoning (KDP)" },
+    { id: ModelId.CLAUDE_OPUS, label: "Claude 4.5 Opus", description: "Best for complex architecture & deep XML structure" },
+    { id: ModelId.CLAUDE_SONNET, label: "Claude 4.5 Sonnet", description: "Best for coding, efficiency & input/output specs" },
+    { id: ModelId.GROK, label: "Grok-4.1", description: "Best for wit, directness & real-time edge" },
+    { id: ModelId.KIMI_K2, label: "Kimi k2 thinking", description: "Best for ultra-long context & analytical trace" },
 ];
 
 const IMAGE_TARGET_MODELS = [
-    { id: "nano-banana-pro", label: "Nano Banana Pro", description: "Gemini 3. Narrative, 4K, Chinese/English Text." },
-    { id: "midjourney", label: "Midjourney v7", description: "Artistic. Use --v 7, --ar, stylized weights." },
-    { id: "stable-diffusion", label: "Stable Diffusion", description: "Tag-based, precise weighting (keyword:1.2)." },
-    { id: "seedream-4.0", label: "Seedream 4.0", description: "High aesthetic, golden ratio, lighting mastery." },
+    { id: ModelId.NANO_BANANA, label: "Nano Banana Pro", description: "Gemini 3. Narrative, 4K, Chinese/English Text." },
+    { id: ModelId.MIDJOURNEY, label: "Midjourney v7", description: "Artistic. Use --v 7, --ar, stylized weights." },
+    { id: ModelId.FLUX_2, label: "FLUX 2.0", description: "State-of-the-art open weights, extreme detail & prompt adherence." },
+    { id: ModelId.STABLE_DIFFUSION, label: "Stable Diffusion", description: "Tag-based, precise weighting (keyword:1.2)." },
+    { id: ModelId.SEEDREAM, label: "Seedream 4.5", description: "High aesthetic, golden ratio, lighting mastery." },
 ];
 
 const WRITING_TARGET_MODELS = [
-    { id: "gemini-3", label: "Gemini 3", description: "Expansive creativity, long-context flow." },
-    { id: "claude-4.5-sonnet", label: "Claude 4.5 Sonnet", description: "Nuanced, high-level vocabulary, 'human' tone." },
-    { id: "qwen3-max-thinking", label: "Qwen3-Max-Thinking", description: "Deep narrative reasoning & complex plots." },
-    { id: "ernie-5.0", label: "文心 5.0 (Ernie)", description: "Top Chinese literary style & cultural depth." },
+    { id: ModelId.GEMINI_3, label: "Gemini 3", description: "Expansive creativity, long-context flow." },
+    { id: ModelId.CLAUDE_SONNET, label: "Claude 4.5 Sonnet", description: "Nuanced, high-level vocabulary, 'human' tone." },
+    { id: ModelId.QWEN_MAX, label: "Qwen3-Max-Thinking", description: "Deep narrative reasoning & complex plots." },
+    { id: ModelId.ERNIE, label: "文心 5.0 (Ernie)", description: "Top Chinese literary style & cultural depth." },
 ];
 
 const DEFAULT_TEMPLATES: TemplateItem[] = [
@@ -584,7 +330,7 @@ const DEFAULT_TEMPLATES: TemplateItem[] = [
     id: "tpl_default_1",
     name: "Cyberpunk Portrait (Nano Banana)",
     content: "Portrait of a futuristic cyborg with neon accents, rain-slicked streets background, 85mm lens, f/1.8, bokeh, cinematic lighting, hyper-realistic, 8k --ar 9:16",
-    domain: "image",
+    domain: DomainId.IMAGE,
     category: "Art",
     timestamp: Date.now()
   },
@@ -592,7 +338,7 @@ const DEFAULT_TEMPLATES: TemplateItem[] = [
     id: "tpl_default_2",
     name: "React Senior Engineer",
     content: "Act as a Senior React Developer. Write clean, efficient, and accessible code. Use functional components, hooks, and TypeScript. Prioritize performance and error handling. Explain your reasoning briefly before coding.",
-    domain: "coding",
+    domain: DomainId.CODING,
     category: "Development",
     timestamp: Date.now()
   },
@@ -600,23 +346,78 @@ const DEFAULT_TEMPLATES: TemplateItem[] = [
     id: "tpl_default_3",
     name: "SEO Blog Post Writer",
     content: "Write a comprehensive, SEO-optimized blog post about [Topic]. Use H2 and H3 headers. Include a compelling introduction, detailed body paragraphs with examples, and a conclusion. Target keywords: [Keywords]. Tone: Informative and engaging.",
-    domain: "writing",
+    domain: DomainId.WRITING,
     category: "Marketing",
     timestamp: Date.now()
   }
 ];
 
+// --- Types (Refactor Point 5: Robust Types) ---
+type OptimizationResult = {
+  optimizedPrompt: string;
+  explanation: string;
+  addedTerms: string[];
+};
+
+type AssessmentResult = {
+    score: number;
+    commercialValue: "High" | "Medium" | "Low";
+    targetAudience: string[];
+    monetizationChannels: string[];
+    riskFactors: string[];
+    improvementTips: string[];
+    reasoning: string;
+};
+
+// Refactor Point 3: Consolidated Session Data
+type SessionData = {
+    result: OptimizationResult | null;
+    assessment: AssessmentResult | null;
+    generatedMedia: {
+        image: string | null;
+        video: string | null;
+        text: string | null;
+    };
+    // Keep loading states separate for granular UI control, or include here if tightly coupled.
+    // For now, keeping loading states separate is cleaner for UI updates.
+};
+
+const DEFAULT_SESSION_DATA: SessionData = {
+    result: null,
+    assessment: null,
+    generatedMedia: {
+        image: null,
+        video: null,
+        text: null
+    }
+};
+
+type HistoryItem = {
+  id: string;
+  timestamp: number;
+  originalPrompt: string;
+  domain: string;
+  model?: string;
+  result: OptimizationResult;
+};
+
+type TemplateItem = {
+  id: string;
+  name: string;
+  content: string;
+  domain: string;
+  category: string;
+  timestamp: number;
+};
+
 // --- Helper Functions ---
 const cleanAndParseJSON = (str: string, defaultVal: any = {}) => {
   if (!str) return defaultVal;
   try {
-    // 1. Try direct parse
     return JSON.parse(str);
   } catch (e) {
     try {
-      // 2. Try removing markdown code blocks (```json ... ```)
       let clean = str.replace(/```json\s*/g, "").replace(/```\s*$/g, "");
-      // 3. Try finding the first '{' and last '}'
       const firstBrace = clean.indexOf("{");
       const lastBrace = clean.lastIndexOf("}");
       if (firstBrace !== -1 && lastBrace !== -1) {
@@ -631,7 +432,6 @@ const cleanAndParseJSON = (str: string, defaultVal: any = {}) => {
   }
 };
 
-// --- Audio Decoding (for TTS) ---
 function decode(base64: string) {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -662,81 +462,265 @@ async function decodeAudioData(
 }
 
 
-// --- Types ---
-type OptimizationResult = {
-  optimizedPrompt: string;
-  explanation: string;
-  addedTerms: string[];
+// --- Strategy Pattern: System Instruction Generator (Refactor Point 1) ---
+const generateSystemInstruction = (domain: string, model: string, useThinking: boolean, useGrounding: boolean): string => {
+  let baseInstruction = `You are a world-class Prompt Engineer. 
+  Your goal is to rewrite the user's raw input into a professional, high-fidelity prompt optimized for the selected domain.
+  RETURN JSON ONLY.`;
+
+  let domainInstruction = "";
+
+  switch (domain) {
+    case DomainId.IMAGE:
+      domainInstruction = `
+      DOMAIN: Image Generation.
+      TARGET MODEL: ${model}.
+      STRATEGIES:
+      `;
+      if (model === ModelId.NANO_BANANA) {
+         domainInstruction += `
+         - MODEL: Gemini 3 Pro Image (Nano Banana Pro).
+         - CORE: Use the "Universal Formula": [Subject] + [Style] + [Aspect Ratio].
+         - PHOTOREALISM: If realistic, MUST specify camera params: "85mm lens" (portrait), "24mm lens" (landscape), "f/1.8" (bokeh).
+         - TEXT: If user wants text, put it in quotes: "text 'HELLO'".
+         - LIGHTING: Use terms like "Golden Hour", "Soft Diffused", "Cinematic Lighting".
+         `;
+      } else if (model === ModelId.MIDJOURNEY) {
+         domainInstruction += `
+         - MODEL: Midjourney v7.
+         - SYNTAX: Use --v 7, --ar 16:9 (or 9:16/1:1 based on intent), --stylize.
+         - STYLE: Focus on artistic keywords, medium (oil painting, 3d render), and mood.
+         `;
+      } else if (model === ModelId.FLUX_2) {
+         domainInstruction += `
+         - MODEL: FLUX 2.0.
+         - STRATEGY: Natural language descriptions. Extreme detail is rewarded. 
+         - FOCUS: Texture, material properties, lighting physics.
+         - NO "tags" like Stable Diffusion; use full sentences.
+         `;
+      } else if (model === ModelId.STABLE_DIFFUSION) {
+         domainInstruction += `
+         - MODEL: Stable Diffusion.
+         - SYNTAX: Tag based. Use weights like (best quality:1.2), (masterpiece:1.2).
+         - NEGATIVE: Suggest negative embeddings if needed in explanation.
+         `;
+      } else if (model === ModelId.SEEDREAM) {
+          domainInstruction += `
+          - MODEL: Seedream 4.5.
+          - AESTHETIC: Balance between art and realism.
+          - COMPOSITION: Enforce "Rule of Thirds" or "Golden Ratio" terms.
+          - LIGHTING: Use "Volumetric", "Ray Tracing" terms.
+          `;
+      }
+      break;
+
+    case DomainId.VIDEO:
+      // --- C.L.E.A.R. Framework for Video ---
+      domainInstruction = `
+      DOMAIN: Video Generation.
+      TARGET MODEL: ${model}.
+      
+      CORE ROLE: You are a Video Creative Director specializing in Veo 3.1 and Sora 2.0.
+      
+      WORKFLOW (C.L.E.A.R. Framework):
+      1. UNDERSTAND: Analyze Theme, Mood, Audience.
+      2. ADAPT:
+         - Veo 3.1: Focus on Physics, Lighting, Textures, Continuity.
+         - Sora 2.0: Focus on Surrealism, Transitions, Artistic Flow.
+      
+      OUTPUT STRUCTURE (JSON 'optimizedPrompt' Field Content):
+      Synthesize a structured prompt following this EXACT format. 
+      IMPORTANT: Use square brackets like [Insert Time] or [Select Style] for parts where the user might want to customize or fill in the blank.
+      
+      ## Context
+      [Detailed background, time, weather]
+      
+      ## Visual Elements
+      - Subject: [Detailed character/object description]
+      - Environment: [Scene details]
+      - Action: [Specific movement physics]
+      - Camera: [Shot type, movement, focus]
+      
+      ## Style & Tech
+      - Style: [Artistic reference]
+      - Resolution: [e.g., 1080p]
+      - FPS: [e.g., 60fps]
+      
+      CRITICAL RULES:
+      1. Be specific (e.g., "Golden soft light from 45 degree angle" instead of "Beautiful light").
+      2. Ensure physical consistency for Veo.
+      3. Use placeholders [...] for interactive user refinement.
+      `;
+      break;
+
+    case DomainId.WRITING:
+      domainInstruction = `
+      DOMAIN: Creative Writing.
+      TARGET MODEL: ${model}.
+      STRATEGIES:
+      `;
+      if (model === ModelId.GEMINI_3) {
+          domainInstruction += `
+          - Focus: Expansive creativity, utilize long-context window for consistency.
+          - Avoid: Clichés.
+          - Technique: "Show, Don't Tell".
+          `;
+      } else if (model === ModelId.CLAUDE_SONNET) {
+          domainInstruction += `
+          - Focus: Sophisticated vocabulary, human-like nuance, emotional depth.
+          - Tone: Adaptive and subtle.
+          `;
+      } else if (model === ModelId.QWEN_MAX) {
+          domainInstruction += `
+          - Focus: Deep narrative reasoning.
+          - Method: Chain of Thought applied to plot structure. Logic first, then prose.
+          `;
+      } else if (model === ModelId.ERNIE) {
+          domainInstruction += `
+          - Focus: Chinese literary excellence.
+          - Style: Use classical idioms (Chengyu) where appropriate, culturally resonant metaphors.
+          `;
+      }
+      break;
+
+    case DomainId.CODING:
+      domainInstruction = `
+      DOMAIN: Coding / Software Engineering.
+      
+      CRITICAL ENGINEERING PRINCIPLES (MUST FOLLOW):
+      1. Scalability First: Design must facilitate future features. Keep code modular. NO hardcoding.
+      2. Maintainability Paramount: Clear, readable, self-documenting code with necessary comments.
+      3. Robustness is the Baseline: Handle exceptions and edge cases with elegant error handling.
+      4. Performance Awareness: Optimize for low overhead and avoid resource waste.
+      5. Security Fundamentals: Strictly follow security best practices for data and auth.
+
+      Focus on:
+      - Specificity: Language (React, Python), Frameworks, Libraries.
+      - Constraints: "No external libraries", "Use functional components", "TypeScript".
+      - Edge Cases: "Handle null values", "Error boundaries".
+      `;
+      break;
+
+    case DomainId.GENERAL:
+     domainInstruction = `
+     DOMAIN: General Assistant / LLM.
+     TARGET MODEL: ${model}.
+     CRITICAL PROTOCOLS:
+     `;
+     if (model === ModelId.GPT_5_1) {
+         domainInstruction += `
+         *** TARGET: GPT-5.1 ***
+         PROTOCOL: KDP (Kernel Debug Protocol).
+         STRATEGY: The prompt MUST be a structured JSON object to ensure deterministic execution.
+         OUTPUT FORMAT: JSON String of KDP structure.
+         `;
+     } else if (model === ModelId.CLAUDE_OPUS) {
+         domainInstruction += `
+         *** TARGET: Claude 4.5 Opus ***
+         PROTOCOL: Deep XML-Tag Protocol.
+         STRATEGY: Use XML tags with high architectural depth.
+         `;
+     } else if (model === ModelId.GEMINI_3_PRO) {
+         domainInstruction += `
+         *** TARGET: Gemini 3 Pro ***
+         PROTOCOL: Primacy & Recency Attention Strategy.
+         STRATEGY: Markdown Headers + Bullet Points.
+         CRITICAL: Place constraints at the BEGINNING and REPEAT them at the END.
+         `;
+     } else if (model === ModelId.GROK) {
+         domainInstruction += `
+         *** TARGET: Grok 4.1 ***
+         PROTOCOL: Direct/Table Protocol.
+         STRATEGY: Markdown Tables for data. "Step-by-step" trigger.
+         TONE: Direct, witty, no corporate fluff.
+         `;
+     } else if (model === ModelId.KIMI_K2) {
+         domainInstruction += `
+         *** TARGET: Kimi k2 thinking ***
+         PROTOCOL: Sandwich Attention & Atomic XML.
+         STRATEGY: XML Atomic Task + Sandwich Structure (Critical info at start & end) + CoT Trigger.
+         `;
+     }
+     break;
+  }
+
+  let fullSystemInstruction = `${baseInstruction}\n${domainInstruction}`;
+
+  if (useThinking) {
+     fullSystemInstruction += `
+     *** DEEP REASONING MODE ACTIVE ***
+     You must strictly follow this internal thought process before generating the final JSON:
+     PHASE 1: DECOMPOSE (Break down input).
+     PHASE 2: REASSEMBLE (Apply domain strategy).
+     PHASE 3: SELF-CHECK (Review against target model constraints).
+     PHASE 4: OUTPUT (Final JSON).
+     `;
+     if (domain === DomainId.VIDEO) {
+        fullSystemInstruction += `
+        VIDEO SPECIFIC CHECK:
+        - Verify physical logic (Gravity, Light direction).
+        - Ensure Camera movement is physically possible (unless Sora).
+        `;
+     }
+  }
+
+  if (useGrounding) {
+     fullSystemInstruction += `
+     *** WEB GROUNDING ACTIVE ***
+     CRITICAL: Since you are using Google Search, do NOT output JSON. 
+     Instead, use this STRICT anchor-delimited format:
+     <<<ANALYSIS_START>>> [Explanation] <<<ANALYSIS_END>>>
+     <<<PROMPT_START>>> [Final Prompt] <<<PROMPT_END>>>
+     <<<TAGS_START>>> [Tags] <<<TAGS_END>>>
+     `;
+  }
+
+  return fullSystemInstruction;
 };
 
-type AssessmentResult = {
-    score: number; // 0-100
-    commercialValue: "High" | "Medium" | "Low";
-    targetAudience: string[];
-    monetizationChannels: string[]; // e.g. "Notion Template", "SaaS"
-    riskFactors: string[];
-    improvementTips: string[];
-    reasoning: string;
-};
-
-type HistoryItem = {
-  id: string;
-  timestamp: number;
-  originalPrompt: string;
-  domain: string;
-  model?: string;
-  result: OptimizationResult;
-};
-
-type TemplateItem = {
-  id: string;
-  name: string;
-  content: string;
-  domain: string;
-  category: string; // New field for categorization
-  timestamp: number;
-};
 
 // --- Components ---
 
 const WelcomeGuide = ({ onClose }: { onClose: () => void }) => {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fade-in">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-fade-in">
+            <div className="bg-neutral-900 border border-white/10 rounded-3xl w-full max-w-2xl overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.1)] relative">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-purple-500 to-amber-500"></div>
                 
-                <div className="p-8 md:p-12 text-center space-y-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-500/20 text-amber-500 mb-2">
-                        <SparklesIcon className="w-8 h-8" />
+                <div className="p-8 md:p-12 text-center space-y-8">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-amber-500/20 to-purple-500/20 text-amber-500 mb-2 ring-1 ring-white/10">
+                        <LogoIcon className="w-10 h-10" />
                     </div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Welcome to PromptRefine AI</h2>
-                    <p className="text-neutral-400 text-lg max-w-lg mx-auto leading-relaxed">
-                        Transform vague ideas into production-ready prompts for Gemini 3, Midjourney, and more using professional engineering protocols.
-                    </p>
+                    <div>
+                        <h2 className="text-4xl font-bold text-white tracking-tight mb-3">Welcome to PromptRefine AI</h2>
+                        <p className="text-neutral-400 text-lg max-w-lg mx-auto leading-relaxed font-light">
+                            Transform vague ideas into production-ready assets using advanced prompt engineering protocols.
+                        </p>
+                    </div>
                     
                     <div className="grid md:grid-cols-3 gap-6 text-left mt-8">
-                        <div className="p-4 rounded-xl bg-neutral-800/50 border border-neutral-800">
-                             <div className="text-amber-500 mb-3 font-bold text-sm">STEP 1</div>
-                             <h3 className="text-white font-medium mb-1">Select Domain</h3>
-                             <p className="text-xs text-neutral-500">Choose your target (Image, Coding, Writing) to load specialized optimization logic.</p>
+                        <div className="p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-amber-500/30 transition-colors">
+                             <div className="text-amber-500 mb-3 font-bold text-xs tracking-widest uppercase">01. Select</div>
+                             <h3 className="text-white font-medium mb-1">Target Domain</h3>
+                             <p className="text-xs text-neutral-500 leading-relaxed">Choose your target (Image, Coding, Writing) to load specialized logic.</p>
                         </div>
-                        <div className="p-4 rounded-xl bg-neutral-800/50 border border-neutral-800">
-                             <div className="text-amber-500 mb-3 font-bold text-sm">STEP 2</div>
-                             <h3 className="text-white font-medium mb-1">Input Draft</h3>
-                             <p className="text-xs text-neutral-500">Type a basic idea or upload an image to reverse-engineer its prompt.</p>
+                        <div className="p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-amber-500/30 transition-colors">
+                             <div className="text-amber-500 mb-3 font-bold text-xs tracking-widest uppercase">02. Input</div>
+                             <h3 className="text-white font-medium mb-1">Raw Draft</h3>
+                             <p className="text-xs text-neutral-500 leading-relaxed">Type a basic idea or upload an image to reverse-engineer its structure.</p>
                         </div>
-                        <div className="p-4 rounded-xl bg-neutral-800/50 border border-neutral-800">
-                             <div className="text-amber-500 mb-3 font-bold text-sm">STEP 3</div>
+                        <div className="p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-amber-500/30 transition-colors">
+                             <div className="text-amber-500 mb-3 font-bold text-xs tracking-widest uppercase">03. Execute</div>
                              <h3 className="text-white font-medium mb-1">Refine & Scan</h3>
-                             <p className="text-xs text-neutral-500">Get the optimized prompt and run a "Commercial Value Scan" to see its worth.</p>
+                             <p className="text-xs text-neutral-500 leading-relaxed">Get the optimized prompt and run a "Commercial Value Scan".</p>
                         </div>
                     </div>
 
                     <button 
                         onClick={onClose}
-                        className="mt-8 px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform shadow-lg flex items-center gap-2 mx-auto"
+                        className="mt-8 px-10 py-4 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform shadow-[0_0_30px_rgba(255,255,255,0.3)] flex items-center gap-2 mx-auto"
                     >
-                        Get Started <ArrowRightIcon className="w-4 h-4" />
+                        Initialize System <ArrowRightIcon className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -750,8 +734,8 @@ const App = () => {
   });
 
   const [userInput, setUserInput] = useState("");
-  const [selectedDomain, setSelectedDomain] = useState("image");
-  const [selectedModel, setSelectedModel] = useState("nano-banana-pro");
+  const [selectedDomain, setSelectedDomain] = useState<string>(DomainId.IMAGE);
+  const [selectedModel, setSelectedModel] = useState<string>(ModelId.NANO_BANANA);
   
   // Advanced Toggles
   const [useThinking, setUseThinking] = useState(false);
@@ -759,35 +743,30 @@ const App = () => {
 
   // Logic States
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [result, setResult] = useState<OptimizationResult | null>(null);
   
-  // Assessment States
-  const [assessment, setAssessment] = useState<AssessmentResult | null>(null);
+  // Refactor Point 3: Centralized Session State
+  const [sessionData, setSessionData] = useState<SessionData>(DEFAULT_SESSION_DATA);
+  
+  // Loading States (kept separate for UI control)
   const [isAssessing, setIsAssessing] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isGeneratingText, setIsGeneratingText] = useState(false);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState("");
 
   // Reverse Engineering States
   const [isReverseMode, setIsReverseMode] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [videoUrlInput, setVideoUrlInput] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Preview States
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  
-  const [generatedText, setGeneratedText] = useState<string | null>(null);
-  const [isGeneratingText, setIsGeneratingText] = useState(false);
-
-  const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
-  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
-  const [videoProgress, setVideoProgress] = useState("");
 
   // TTS State
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   const [copyStatus, setCopyStatus] = useState(false);
   const [saveStatus, setSaveStatus] = useState(false);
-  const [toastMessage, setToastMessage] = useState(""); // Toast State
+  const [toastMessage, setToastMessage] = useState("");
   
   // Sidebar State
   const [showSidebar, setShowSidebar] = useState(false);
@@ -804,7 +783,6 @@ const App = () => {
     }
   });
 
-  // Saved Prompts State
   const [savedPrompts, setSavedPrompts] = useState<HistoryItem[]>(() => {
     try {
         const saved = localStorage.getItem("promptRefineSaved");
@@ -814,7 +792,6 @@ const App = () => {
     }
   });
 
-  // Templates State
   const [templates, setTemplates] = useState<TemplateItem[]>(() => {
     try {
         const saved = localStorage.getItem("promptRefineTemplates");
@@ -832,36 +809,35 @@ const App = () => {
 
   // Reset model selection when domain changes to ensure valid model
   useEffect(() => {
-    if (selectedDomain === 'general') {
-        setSelectedModel('gemini-3-pro');
-    } else if (selectedDomain === 'image') {
-        setSelectedModel('nano-banana-pro');
-    } else if (selectedDomain === 'writing') {
-        setSelectedModel('gemini-3');
-    } else if (selectedDomain === 'video') {
-        setSelectedModel('veo');
+    if (selectedDomain === DomainId.GENERAL) {
+        setSelectedModel(ModelId.GEMINI_3_PRO);
+    } else if (selectedDomain === DomainId.IMAGE) {
+        setSelectedModel(ModelId.NANO_BANANA);
+    } else if (selectedDomain === DomainId.WRITING) {
+        setSelectedModel(ModelId.GEMINI_3);
+    } else if (selectedDomain === DomainId.VIDEO) {
+        setSelectedModel(ModelId.VEO_3_1);
     } else {
-        setSelectedModel('gemini-3-pro'); // Default fallback
+        setSelectedModel(ModelId.GEMINI_3_PRO);
     }
-    // Reset Reverse Mode if not in Image domain
-    if (selectedDomain !== 'image') {
-        setIsReverseMode(false);
-        setUploadedImage(null);
-    }
+
+    // --- CRITICAL FIX: CLEAN SLATE ON DOMAIN SWITCH ---
+    // Refactor Point 3: Single state reset
+    setSessionData(DEFAULT_SESSION_DATA);
+    setUserInput("");
+    setIsReverseMode(false);
+    setUploadedImage(null);
+    setVideoUrlInput("");
+    
   }, [selectedDomain]);
 
-  // Clear search when switching tabs
   useEffect(() => {
     setSearchQuery("");
   }, [sidebarTab]);
 
-  // Clear assessment when result changes
-  useEffect(() => {
-      setAssessment(null);
-      setGeneratedImage(null);
-      setGeneratedText(null);
-      setGeneratedVideo(null);
-  }, [result]);
+  // Clear assessment when result changes is no longer needed directly as we set centralized state,
+  // but if we re-run optimization, we should clear assessment and media.
+  // Handled in handleOptimize.
 
   const closeWelcome = () => {
       setShowWelcome(false);
@@ -887,16 +863,15 @@ const App = () => {
         model,
         result
     };
-    // Limit to 50 items
     const newHistory = [newItem, ...history].slice(50);
     setHistory(newHistory);
     localStorage.setItem("promptRefineHistory", JSON.stringify(newHistory));
   };
 
   const handleSavePrompt = () => {
+      const { result } = sessionData;
       if (!result) return;
       
-      // Check if already saved (by optimized prompt content to avoid dupes)
       const existing = savedPrompts.find(p => p.result.optimizedPrompt === result.optimizedPrompt);
       if (existing) {
           setSaveStatus(true);
@@ -907,9 +882,9 @@ const App = () => {
       const newItem: HistoryItem = {
         id: crypto.randomUUID(),
         timestamp: Date.now(),
-        originalPrompt: isReverseMode ? "[Image Upload]" : userInput,
+        originalPrompt: isReverseMode ? (uploadedImage ? "[Image Upload]" : "[Video Analysis]") : userInput,
         domain: selectedDomain,
-        model: (selectedDomain === 'general' || selectedDomain === 'image' || selectedDomain === 'writing' || selectedDomain === 'video') ? selectedModel : undefined,
+        model: (selectedDomain === DomainId.GENERAL || selectedDomain === DomainId.IMAGE || selectedDomain === DomainId.WRITING || selectedDomain === DomainId.VIDEO) ? selectedModel : undefined,
         result
       };
 
@@ -922,9 +897,9 @@ const App = () => {
   };
 
   const openSaveTemplateModal = (content: string) => {
-    setTemplateContentToSave(content || ""); // Allow empty string for manual entry
+    setTemplateContentToSave(content || "");
     setNewTemplateName("");
-    setNewTemplateCategory(""); // Reset category
+    setNewTemplateCategory("");
     setTemplateError("");
     setIsTemplateModalOpen(true);
   };
@@ -953,12 +928,9 @@ const App = () => {
     localStorage.setItem("promptRefineTemplates", JSON.stringify(newTemplates));
     setIsTemplateModalOpen(false);
     
-    // UX Improvements:
-    // 1. Show global toast feedback
     setToastMessage("Template Saved Successfully!");
     setTimeout(() => setToastMessage(""), 3000);
 
-    // 2. Automatically navigate to Templates tab and open sidebar
     setSidebarTab('templates');
     setShowSidebar(true);
   };
@@ -973,10 +945,7 @@ const App = () => {
   const loadTemplate = (t: TemplateItem) => {
       setUserInput(t.content);
       setSelectedDomain(t.domain);
-      setResult(null);
-      setGeneratedImage(null);
-      setGeneratedText(null);
-      setGeneratedVideo(null);
+      setSessionData(DEFAULT_SESSION_DATA);
       setIsReverseMode(false);
       setUploadedImage(null);
       setShowSidebar(false);
@@ -1004,18 +973,19 @@ const App = () => {
   };
 
   const loadHistoryItem = (item: HistoryItem) => {
-    if (item.originalPrompt !== "[Image Upload]") {
+    if (item.originalPrompt !== "[Image Upload]" && item.originalPrompt !== "[Video Analysis]") {
         setUserInput(item.originalPrompt);
     }
     setSelectedDomain(item.domain);
     if (item.model) setSelectedModel(item.model);
-    setResult(item.result);
-    // Reset generation states as they are not stored
-    setGeneratedImage(null);
-    setGeneratedText(null);
-    setGeneratedVideo(null);
     
-    setIsReverseMode(item.originalPrompt === "[Image Upload]"); 
+    setSessionData({
+        result: item.result,
+        assessment: null,
+        generatedMedia: { image: null, video: null, text: null }
+    });
+    
+    setIsReverseMode(item.originalPrompt === "[Image Upload]" || item.originalPrompt === "[Video Analysis]"); 
     setUploadedImage(null);
     setShowSidebar(false);
   };
@@ -1032,15 +1002,16 @@ const App = () => {
   };
 
   const handleGenerateImage = async () => {
+    const { result } = sessionData;
     if (!result?.optimizedPrompt) return;
     setIsGeneratingImage(true);
-    setGeneratedImage(null);
+    // Reset only image part of session
+    setSessionData(prev => ({ ...prev, generatedMedia: { ...prev.generatedMedia, image: null } }));
 
     try {
         await ensureApiKey();
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
-        // Use gemini-3-pro-image-preview for high quality preview
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-image-preview',
             contents: {
@@ -1054,12 +1025,11 @@ const App = () => {
             }
         });
 
-        // Loop parts to find image
         for (const part of response.candidates?.[0]?.content?.parts || []) {
             if (part.inlineData) {
                 const base64EncodeString = part.inlineData.data;
                 const imageUrl = `data:image/png;base64,${base64EncodeString}`;
-                setGeneratedImage(imageUrl);
+                setSessionData(prev => ({ ...prev, generatedMedia: { ...prev.generatedMedia, image: imageUrl } }));
                 break;
             }
         }
@@ -1072,17 +1042,17 @@ const App = () => {
   };
 
   const handleGenerateVideo = async () => {
+    const { result } = sessionData;
     if (!result?.optimizedPrompt) return;
     setIsGeneratingVideo(true);
-    setGeneratedVideo(null);
-    setVideoProgress("Initializing Veo...");
+    setSessionData(prev => ({ ...prev, generatedMedia: { ...prev.generatedMedia, video: null } }));
+    setVideoProgress("Initializing Veo 3.1...");
 
     try {
         await ensureApiKey();
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
         setVideoProgress("Submitting generation request...");
-        // Use Veo model
         let operation = await ai.models.generateVideos({
             model: 'veo-3.1-fast-generate-preview',
             prompt: result.optimizedPrompt,
@@ -1094,9 +1064,8 @@ const App = () => {
         });
 
         setVideoProgress("Rendering video (this takes about 30-60s)...");
-        // Polling loop with Timeout safety
         let attempts = 0;
-        const maxAttempts = 20; // 20 * 5s = 100 seconds max wait
+        const maxAttempts = 20; 
         while (!operation.done) {
             if (attempts >= maxAttempts) {
                 throw new Error("Video generation timed out.");
@@ -1113,7 +1082,7 @@ const App = () => {
              const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
              const blob = await response.blob();
              const videoUrl = URL.createObjectURL(blob);
-             setGeneratedVideo(videoUrl);
+             setSessionData(prev => ({ ...prev, generatedMedia: { ...prev.generatedMedia, video: videoUrl } }));
         } else {
              throw new Error("No video URI returned.");
         }
@@ -1128,15 +1097,15 @@ const App = () => {
   };
 
   const handleGenerateText = async () => {
+      const { result } = sessionData;
       if (!result?.optimizedPrompt) return;
       setIsGeneratingText(true);
-      setGeneratedText(null);
+      setSessionData(prev => ({ ...prev, generatedMedia: { ...prev.generatedMedia, text: null } }));
 
       try {
           await ensureApiKey();
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           
-          // Use gemini-3-pro for high quality simulation
           const response = await ai.models.generateContent({
               model: 'gemini-3-pro-preview',
               contents: result.optimizedPrompt,
@@ -1145,7 +1114,7 @@ const App = () => {
               }
           });
           
-          setGeneratedText(response.text || "No output generated.");
+          setSessionData(prev => ({ ...prev, generatedMedia: { ...prev.generatedMedia, text: response.text || "No output." } }));
 
       } catch (error) {
           console.error("Text simulation failed:", error);
@@ -1156,6 +1125,7 @@ const App = () => {
   };
 
   const handleTTS = async () => {
+      const { result } = sessionData;
       if (!result?.optimizedPrompt) return;
       setIsPlayingAudio(true);
       
@@ -1170,7 +1140,7 @@ const App = () => {
                   responseModalities: [Modality.AUDIO],
                   speechConfig: {
                       voiceConfig: {
-                          prebuiltVoiceConfig: { voiceName: 'Kore' }, // Kore has a nice deep professional tone
+                          prebuiltVoiceConfig: { voiceName: 'Kore' },
                       },
                   },
               },
@@ -1203,115 +1173,113 @@ const App = () => {
       }
   };
 
+  // Refactor Point 4: Modular Reverse Engineering with Strict Image JSON
   const handleReverseEngineer = async () => {
-    if (!uploadedImage) return;
+    if (!uploadedImage && !videoUrlInput) return;
     setIsAnalyzing(true);
-    setResult(null);
+    setSessionData(prev => ({ ...prev, result: null })); // Reset result
 
     try {
         await ensureApiKey();
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
-        // Split base64 to get data
-        const base64Data = uploadedImage.split(',')[1];
-        
-        let systemInstruction = `
-          You are an expert Reverse Engineering Prompt Engineer for AI Image Models.
-          
-          TASK:
-          1. Analyze the uploaded image and first convert it mentally into a detailed JSON structure containing:
-             - "image_analysis": { subject, key_elements, background, lighting, color_palette }
-             - "nano_banana_pro_parameters": { resolution, style, lighting_tech, iso, composition }
-             - "aspect_ratio"
-             
-          2. BASED on this JSON content, SYNTHESIZE the final reverse engineered prompt.
-             - Combine subject, style, lighting, and parameters into a single, cohesive, high-quality prompt string.
-             - Ensure it follows the structure best suited for the target model (e.g., Nano Banana Pro/Gemini 3).
-          
-          OUTPUT REQUIREMENT:
-          You must return a JSON object (as defined in the responseSchema) where:
-          - 'optimizedPrompt': Contains the FINAL SYNTHESIZED TEXT PROMPT (e.g. "Minimalist workspace still life...").
-          - 'explanation': Contains the structured JSON ANALYSIS details you derived in step 1 (formatted as a readable string or JSON string), so the user can see the breakdown.
-          - 'addedTerms': Extract key tags.
-          
-          TARGET MODEL: ${selectedModel}
-        `;
+        const parts: any[] = [];
+        let contextText = "";
+        let systemInstruction = "";
+        let responseSchema = undefined;
+        let responseMimeType = undefined;
 
-        // ... (system instruction refinement logic similar to previous code)
-         if (selectedModel === 'midjourney') {
-           systemInstruction += `
-             - Format: Subject description + Art Style + Parameters
-             - Parameters: Append --v 7 and approximate --ar (aspect ratio).
-             - Style: Use evocative, artistic keywords.
-           `;
-        } else if (selectedModel === 'nano-banana-pro') {
-           systemInstruction += `
-             - Format: Narrative Description.
-             - Keywords: Include camera parameters (e.g., "85mm lens", "f/1.8 aperture") if photorealistic.
-             - Structure: Subject + Style + Context + Lighting.
-           `;
-        } else if (selectedModel === 'stable-diffusion') {
-           systemInstruction += `
-             - Format: Tag-based with weights. Example: (subject:1.2), style, lighting.
-             - Keywords: "masterpiece", "best quality".
-           `;
+        // --- Logic Branching: Image vs Video ---
+        if (selectedDomain === DomainId.IMAGE && uploadedImage) {
+            // STRICT IMAGE JSON PROTOCOL
+            const base64Data = uploadedImage.split(',')[1];
+            parts.push({ inlineData: { mimeType: 'image/jpeg', data: base64Data } });
+            contextText = "Analyze this image and reverse engineer it into a JSON structure.";
+            
+            systemInstruction = `
+              You are an expert Reverse Engineering Prompt Engineer for AI Image Models.
+              
+              TASK:
+              1. Analyze the uploaded image and first convert it mentally into a detailed JSON structure containing:
+                 - "image_analysis": { subject, key_elements, background, lighting, color_palette }
+                 - "model_parameters": { resolution, style, lighting_tech, iso, composition }
+                 
+              2. BASED on this, SYNTHESIZE the final reverse engineered prompt.
+              
+              OUTPUT REQUIREMENT:
+              You must return a JSON object (as defined in the responseSchema) where:
+              - 'optimizedPrompt': Contains the FINAL SYNTHESIZED TEXT PROMPT.
+              - 'explanation': Contains the structured JSON ANALYSIS details.
+              - 'addedTerms': Extract key tags.
+              
+              TARGET MODEL: ${selectedModel}
+            `;
+            
+            responseMimeType = "application/json";
+            responseSchema = {
+                type: Type.OBJECT,
+                properties: {
+                  optimizedPrompt: { type: Type.STRING, description: "The final synthesized text prompt." },
+                  explanation: { type: Type.STRING, description: "The detailed JSON analysis of the image." },
+                  addedTerms: { type: Type.ARRAY, items: { type: Type.STRING } },
+                },
+            };
+        } else if (selectedDomain === DomainId.VIDEO) {
+             // FLEXIBLE VIDEO LOGIC (As requested: Not fully decided yet, use context logic)
+             if (uploadedImage) {
+                const base64Data = uploadedImage.split(',')[1];
+                parts.push({ inlineData: { mimeType: 'image/jpeg', data: base64Data } });
+                contextText += " Use this reference frame. ";
+             }
+             if (videoUrlInput) {
+                contextText += ` Context URL: ${videoUrlInput}. Infer style from this link's context/fame.`;
+             }
+             contextText += " Analyze content and create a video generation prompt.";
+
+             // We use a looser instruction for Video as per request, but still ask for JSON structure output
+             systemInstruction = `
+               You are an expert Video Prompt Engineer.
+               Analyze the input (Reference Frame or URL Context) and reverse engineer a prompt for ${selectedModel}.
+               Focus on: Camera Movement, Lighting, Pacing, and Action.
+               Return JSON.
+             `;
+              responseMimeType = "application/json";
+              responseSchema = {
+                type: Type.OBJECT,
+                properties: {
+                  optimizedPrompt: { type: Type.STRING },
+                  explanation: { type: Type.STRING },
+                  addedTerms: { type: Type.ARRAY, items: { type: Type.STRING } },
+                },
+            };
         }
 
+        parts.push({ text: contextText });
 
         const modelConfig = {
-             model: 'gemini-3-pro-preview', // Use Vision model
-             contents: {
-                parts: [
-                    { inlineData: { mimeType: 'image/jpeg', data: base64Data } }, // Assuming JPEG/PNG, API handles it
-                    { text: "将图像转换为 JSON 提示符，包括大小和详细信息" }
-                ]
-             },
+             model: 'gemini-3-pro-preview', // Vision capable
+             contents: { parts: parts },
              config: {
                 systemInstruction: systemInstruction,
-                responseMimeType: "application/json",
-                responseSchema: {
-                  type: Type.OBJECT,
-                  properties: {
-                    optimizedPrompt: { type: Type.STRING, description: "The final synthesized text prompt based on the analysis." },
-                    explanation: { type: Type.STRING, description: "The detailed JSON analysis of the image (subject, lighting, params)." },
-                    addedTerms: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  },
-                },
+                responseMimeType: responseMimeType,
+                responseSchema: responseSchema,
              }
         };
 
-        let response;
-        try {
-            response = await ai.models.generateContent(modelConfig);
-        } catch (error: any) {
-            // Fallback logic for 503/500
-            const isServerError = 
-                (error.message && (error.message.includes('500') || error.message.includes('503'))) ||
-                error.status === 500 || error.code === 500 ||
-                error.status === 503 || error.code === 503;
-
-            if (isServerError) {
-                console.warn("Gemini 3 Pro overloaded, falling back to Gemini 2.5 Flash...", error);
-                const fallbackConfig = { ...modelConfig, model: 'gemini-2.5-flash' };
-                response = await ai.models.generateContent(fallbackConfig);
-            } else {
-                throw error;
-            }
-        }
-
+        const response = await ai.models.generateContent(modelConfig);
         const json = cleanAndParseJSON(response.text || "{}");
         const safeResult = {
             optimizedPrompt: json.optimizedPrompt || "Failed to generate prompt.",
-            explanation: (json.explanation || "Analysis complete.") + (response.model === 'gemini-2.5-flash' ? " (Generated with fallback model due to high traffic)" : ""),
+            explanation: json.explanation || "Analysis complete.",
             addedTerms: Array.isArray(json.addedTerms) ? json.addedTerms : []
         };
 
-        setResult(safeResult);
-        addToHistory("[Image Upload]", selectedDomain, safeResult, selectedModel);
+        setSessionData(prev => ({ ...prev, result: safeResult }));
+        addToHistory(uploadedImage ? "[Image Upload]" : "[Video Analysis]", selectedDomain, safeResult, selectedModel);
 
     } catch (error) {
         console.error("Reverse engineering failed:", error);
-        alert("Failed to analyze image. Please try again.");
+        alert("Failed to analyze. Please try again.");
     } finally {
         setIsAnalyzing(false);
     }
@@ -1321,293 +1289,27 @@ const App = () => {
   const handleOptimize = async () => {
     if (!userInput.trim()) return;
     setIsOptimizing(true);
-    setResult(null);
-    setGeneratedImage(null);
-    setGeneratedText(null);
-    setGeneratedVideo(null);
+    // Refactor Point 3: Clean slate via session data
+    setSessionData(DEFAULT_SESSION_DATA);
 
     try {
       await ensureApiKey();
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      let baseInstruction = `You are a world-class Prompt Engineer. 
-      Your goal is to rewrite the user's raw input into a professional, high-fidelity prompt optimized for the selected domain.
-      RETURN JSON ONLY.`;
-
-      let domainInstruction = "";
+      // Refactor Point 1: Strategy Pattern implementation for System Instructions
+      const fullSystemInstruction = generateSystemInstruction(selectedDomain, selectedModel, useThinking, useGrounding);
       
-      if (selectedDomain === "image") {
-          domainInstruction = `
-          DOMAIN: Image Generation.
-          TARGET MODEL: ${selectedModel}.
-          
-          STRATEGIES:
-          `;
-          
-          if (selectedModel === 'nano-banana-pro') {
-             domainInstruction += `
-             - MODEL: Gemini 3 Pro Image (Nano Banana Pro).
-             - CORE: Use the "Universal Formula": [Subject] + [Style] + [Aspect Ratio].
-             - PHOTOREALISM: If realistic, MUST specify camera params: "85mm lens" (portrait), "24mm lens" (landscape), "f/1.8" (bokeh).
-             - TEXT: If user wants text, put it in quotes: "text 'HELLO'".
-             - LIGHTING: Use terms like "Golden Hour", "Soft Diffused", "Cinematic Lighting".
-             - REF: "The Definitive Guide to Mastering Nano Banana Pro".
-             `;
-          } else if (selectedModel === 'midjourney') {
-             domainInstruction += `
-             - MODEL: Midjourney v7.
-             - SYNTAX: Use --v 7, --ar 16:9 (or 9:16/1:1 based on intent), --stylize.
-             - STYLE: Focus on artistic keywords, medium (oil painting, 3d render), and mood.
-             `;
-          } else if (selectedModel === 'stable-diffusion') {
-             domainInstruction += `
-             - MODEL: Stable Diffusion.
-             - SYNTAX: Tag based. Use weights like (best quality:1.2), (masterpiece:1.2).
-             - NEGATIVE: Suggest negative embeddings if needed in explanation.
-             `;
-          } else if (selectedModel === 'seedream-4.0') {
-              domainInstruction += `
-              - MODEL: Seedream 4.0.
-              - AESTHETIC: Balance between art and realism.
-              - COMPOSITION: Enforce "Rule of Thirds" or "Golden Ratio" terms.
-              `;
-          }
-      } else if (selectedDomain === "video") {
-          domainInstruction = `
-          DOMAIN: Video Generation (e.g., Veo, Sora).
-          Focus on:
-          1. Camera Movement: "Drone shot", "Pan left", "Zoom in", "Tracking shot".
-          2. Lighting & Atmosphere: "Cyberpunk neon", "Golden hour", "Foggy morning".
-          3. Action: Clear description of movement. "A cat running", "Cars speeding".
-          4. Tech Specs: "4k resolution", "60fps", "Cinematic".
-          `;
-      } else if (selectedDomain === "writing") {
-          domainInstruction = `
-          DOMAIN: Creative Writing.
-          TARGET MODEL: ${selectedModel}.
-          
-          STRATEGIES:
-          `;
-          if (selectedModel === 'gemini-3') {
-              domainInstruction += `
-              - Focus: Expansive creativity, utilize long-context window for consistency.
-              - Avoid: Clichés.
-              - Technique: "Show, Don't Tell".
-              `;
-          } else if (selectedModel === 'claude-4.5-sonnet') {
-              domainInstruction += `
-              - Focus: Sophisticated vocabulary, human-like nuance, emotional depth.
-              - Tone: Adaptive and subtle.
-              `;
-          } else if (selectedModel === 'qwen3-max-thinking') {
-              domainInstruction += `
-              - Focus: Deep narrative reasoning.
-              - Method: Chain of Thought applied to plot structure. Logic first, then prose.
-              `;
-          } else if (selectedModel === 'ernie-5.0') {
-              domainInstruction += `
-              - Focus: Chinese literary excellence.
-              - Style: Use classical idioms (Chengyu) where appropriate, culturally resonant metaphors.
-              `;
-          }
-
-      } else if (selectedDomain === "coding") {
-          domainInstruction = `
-          DOMAIN: Coding / Software Engineering.
-          Focus on:
-          1. Specificity: Language (React, Python), Frameworks, Libraries.
-          2. Constraints: "No external libraries", "Use functional components", "TypeScript".
-          3. Edge Cases: "Handle null values", "Error boundaries".
-          `;
-      } else if (selectedDomain === "general") {
-         // --- UPDATED LOGIC BASED ON KERNEL DIAGNOSTIC REPORT ---
-         domainInstruction = `
-         DOMAIN: General Assistant / LLM.
-         TARGET MODEL: ${selectedModel}.
-         
-         CRITICAL PROTOCOLS:
-         `;
-         
-         if (selectedModel === 'gpt-5.1') {
-             domainInstruction += `
-             *** TARGET: GPT-5.1 ***
-             PROTOCOL: KDP (Kernel Debug Protocol).
-             STRATEGY: The prompt MUST be a structured JSON object to ensure deterministic execution.
-             
-             OUTPUT FORMAT (for 'optimizedPrompt'):
-             The 'optimizedPrompt' string inside your JSON response MUST be a valid JSON string itself, following this schema:
-             {
-               "KDP_CORE": { "deterministic": true, "no_fabrication": true, "priority_order": ["constraints", "task", "input"] },
-               "KDP_TASK": { "goal": "[User's Goal]", "steps_required": true },
-               "KDP_INPUT": { "context": "[User's Input]", "constraints": ["Hard constraint 1", "Soft constraint 2"] },
-               "KDP_CHECK": { "no_fabrication": true }
-             }
-             
-             EXPLANATION: Explain that KDP ensures the model acts as a reliable kernel rather than a chatty bot.
-             `;
-         } else if (selectedModel === 'claude-4.5-opus') {
-             domainInstruction += `
-             *** TARGET: Claude 4.5 Opus ***
-             PROTOCOL: Deep XML-Tag Protocol.
-             STRATEGY: Use XML tags with high architectural depth.
-             
-             OUTPUT FORMAT (for 'optimizedPrompt'):
-             <task>
-               <objective>[User's Goal]</objective>
-             </task>
-             
-             <input_spec>
-               [Specifics of input data/code]
-             </input_spec>
-             
-             <output_spec>
-               [Specific Schema/Format of output]
-             </output_spec>
-             
-             <constraints>
-               [Hard limitations]
-             </constraints>
-             
-             EXPLANATION: Sonnet 4.5 excels with explicit input/output specifications, especially for code and data tasks.
-             `;
-         } else if (selectedModel === 'gemini-3-pro') {
-             domainInstruction += `
-             *** TARGET: Gemini 3 Pro ***
-             PROTOCOL: Primacy & Recency Attention Strategy.
-             STRATEGY: Markdown Headers + Bullet Points.
-             CRITICAL: Place constraints at the BEGINNING and REPEAT them at the END.
-             
-             OUTPUT FORMAT (for 'optimizedPrompt'):
-             ## Role & Constraints (Primacy)
-             - [Role Definition]
-             - [Critical Constraint A]
-             
-             ## Context & Input
-             [User's Input]
-             
-             ## Task
-             [Specific Instructions]
-             
-             ## Reminder (Recency)
-             - REMEMBER: [Critical Constraint A]
-             
-             EXPLANATION: "Sandwiching" constraints mitigates context loss in long-window reasoning.
-             `;
-         } else if (selectedModel === 'grok-4.1') {
-             domainInstruction += `
-             *** TARGET: Grok 4.1 ***
-             PROTOCOL: Direct/Table Protocol.
-             STRATEGY: Markdown Tables for data. "Step-by-step" trigger.
-             TONE: Direct, witty, no corporate fluff.
-             
-             OUTPUT FORMAT (for 'optimizedPrompt'):
-             # Task: [Goal]
-             
-             [User Input]
-             
-             Trigger: "Let's think step by step."
-             
-             (If comparing items, use a Markdown Table)
-             
-             EXPLANATION: Grok prefers raw directness and structured data tables over verbose prose.
-             `;
-         } else if (selectedModel === 'kimi-k2-thinking') {
-             domainInstruction += `
-             *** TARGET: Kimi k2 thinking ***
-             PROTOCOL: Sandwich Attention & Atomic XML.
-             STRATEGY: XML Atomic Task + Sandwich Structure (Critical info at start & end) + CoT Trigger.
-             
-             OUTPUT FORMAT (for 'optimizedPrompt'):
-             <task type="analytical" domain="[Domain]" reasoning="required">
-               <context>
-                 [Context info]
-                 <critical_marker>CRITICAL: [Key Instruction]</critical_marker>
-               </context>
-               
-               <objective>[User Goal]</objective>
-               
-               <constraints>
-                 <constraint>[Constraint 1]</constraint>
-               </constraints>
-               
-               <execution_trace>
-                 Trigger: "Execute analytical reasoning trace: decompose, validate each premise, then synthesize."
-                 <!-- REPEAT CRITICAL: [Key Instruction] -->
-               </execution_trace>
-             </task>
-             
-             EXPLANATION: Optimizes for Kimi's specific attention decay patterns and MoE routing.
-             `;
-         }
-      }
-
-      // Concatenate for system instruction
-      let fullSystemInstruction = `${baseInstruction}\n${domainInstruction}`;
-
-      // --- CONFIGURATION LOGIC FOR ADVANCED FEATURES ---
-      
-      // DEFAULT TO GEMINI 3 PRO PREVIEW (As requested)
       let targetModel = 'gemini-3-pro-preview';
       let tools: any[] = [];
       let thinkingConfig = undefined;
 
-      // Feature: Thinking Config (Deep Reasoning)
-      // Per system instruction: thinkingConfig is ONLY available on Gemini 2.5 series.
-      // IF the user enables "Deep Reasoning", we MUST switch to gemini-2.5-flash to use the REAL thinking capability.
-      // AND we must enforce the "Decompose -> Reassemble -> Check" logic in the prompt.
       if (useThinking) {
          targetModel = 'gemini-2.5-flash';
-         thinkingConfig = { thinkingBudget: 4096 }; // Increased budget for deep reasoning
-         
-         // INJECT SPECIFIC DEEP THINKING LOGIC INTO SYSTEM PROMPT
-         fullSystemInstruction += `
-         
-         *** DEEP REASONING MODE ACTIVE ***
-         You must strictly follow this internal thought process before generating the final JSON:
-         
-         PHASE 1: DECOMPOSE
-         - Break down the user's raw input into atomic constraints, intent, and missing information.
-         - Identify potential ambiguities.
-         
-         PHASE 2: REASSEMBLE
-         - Construct the optimal prompt structure based on the selected Domain and Target Model.
-         - Apply specific prompting techniques (Chain of Thought, Few-Shot, etc.).
-         
-         PHASE 3: SELF-CHECK (CRITICAL)
-         - Review your draft against the Target Model's best practices.
-         - Does it violate any constraints? Is it too vague?
-         - Refine the draft.
-         
-         PHASE 4: OUTPUT
-         - Generate the final JSON.
-         `;
+         thinkingConfig = { thinkingBudget: 4096 }; 
       }
 
-      // Feature: Google Search Grounding
       if (useGrounding) {
-         // Grounding is supported on 3-Pro.
          tools.push({ googleSearch: {} });
-         
-         // ARCHITECTURAL FIX: Deterministic Anchor Delimiters
-         // Do not rely on JSON when grounding is active. Use delimiters.
-         fullSystemInstruction += `
-         
-         *** WEB GROUNDING ACTIVE ***
-         CRITICAL: Since you are using Google Search, do NOT output JSON. 
-         Instead, use this STRICT anchor-delimited format:
-         
-         <<<ANALYSIS_START>>>
-         [Your explanation of how the search results informed the prompt]
-         <<<ANALYSIS_END>>>
-         
-         <<<PROMPT_START>>>
-         [The final optimized prompt]
-         <<<PROMPT_END>>>
-         
-         <<<TAGS_START>>>
-         [Comma, Separated, Tags]
-         <<<TAGS_END>>>
-         `;
       }
 
       const modelConfig = {
@@ -1617,12 +1319,9 @@ const App = () => {
         },
         config: {
             systemInstruction: fullSystemInstruction,
-            responseMimeType: useGrounding ? undefined : "application/json", // Google Search doesn't support responseMimeType
-            // Add thinking config if enabled
+            responseMimeType: useGrounding ? undefined : "application/json", 
             ...(thinkingConfig && { thinkingConfig }),
-            // Add tools if enabled
             ...(tools.length > 0 && { tools }),
-            // Only use responseSchema if NOT using grounding (Grounding + Schema is invalid)
             ...(!useGrounding && {
                 responseSchema: {
                     type: Type.OBJECT,
@@ -1640,7 +1339,6 @@ const App = () => {
       try {
           response = await ai.models.generateContent(modelConfig);
       } catch (error: any) {
-          // Robust fallback for 500/503 errors
           const isServerError = 
             (error.message && (error.message.includes('500') || error.message.includes('503'))) ||
             error.status === 500 || 
@@ -1650,7 +1348,6 @@ const App = () => {
 
           if (isServerError) {
               console.warn("Gemini Error, falling back to Gemini 2.5 Flash...", error);
-              // Fallback to basic Flash without fancy tools to ensure reliability
               const fallbackConfig = { 
                   model: 'gemini-2.5-flash',
                   contents: { parts: [{ text: `User Raw Input: "${userInput}"` }] },
@@ -1666,11 +1363,9 @@ const App = () => {
           }
       }
       
-      // Parse Logic: Handle Grounding Text vs Standard JSON
       let safeResult;
       
       if (useGrounding) {
-          // ARCHITECTURAL FIX: Parse Delimiters
           const text = response.text || "";
           
           const extractBetween = (str: string, start: string, end: string) => {
@@ -1685,7 +1380,6 @@ const App = () => {
           const analysisPart = extractBetween(text, "<<<ANALYSIS_START>>>", "<<<ANALYSIS_END>>>");
           const tagsPart = extractBetween(text, "<<<TAGS_START>>>", "<<<TAGS_END>>>");
 
-          // Fallback if delimiters fail (rare but possible)
           if (!promptPart) {
                safeResult = {
                 optimizedPrompt: text,
@@ -1708,7 +1402,7 @@ const App = () => {
           };
       }
 
-      setResult(safeResult);
+      setSessionData(prev => ({ ...prev, result: safeResult }));
       addToHistory(userInput, selectedDomain, safeResult, selectedModel);
 
     } catch (error) {
@@ -1720,9 +1414,11 @@ const App = () => {
   };
 
   const handleAssessValue = async () => {
+    const { result } = sessionData;
     if (!result) return;
     setIsAssessing(true);
-    setAssessment(null);
+    // Clear assessment in session
+    setSessionData(prev => ({ ...prev, assessment: null }));
     
     try {
         await ensureApiKey();
@@ -1775,7 +1471,6 @@ const App = () => {
         try {
             response = await ai.models.generateContent(modelConfig);
         } catch (err: any) {
-            // Check for overload error (503) and fallback to a lighter model
             const isServerError = 
                 (err.message && (err.message.includes('500') || err.message.includes('503') || err.message.includes('overloaded'))) ||
                 err.status === 500 || err.code === 500 ||
@@ -1783,7 +1478,6 @@ const App = () => {
 
             if (isServerError) {
                 console.warn("Gemini 3 Pro overloaded, retrying with Gemini 2.5 Flash...");
-                // Fallback to Flash
                 const fallbackConfig = { ...modelConfig, model: 'gemini-2.5-flash' };
                 response = await ai.models.generateContent(fallbackConfig);
             } else {
@@ -1792,7 +1486,6 @@ const App = () => {
         }
         
         const json = cleanAndParseJSON(response.text || "{}");
-        // FIX: Ensure all properties have defaults to prevent render crashes
         const safeJson = {
             ...json,
             commercialValue: json.commercialValue || "Low",
@@ -1803,7 +1496,8 @@ const App = () => {
             improvementTips: Array.isArray(json.improvementTips) ? json.improvementTips : [],
             reasoning: json.reasoning || "No reasoning provided."
         };
-        setAssessment(safeJson);
+        
+        setSessionData(prev => ({ ...prev, assessment: safeJson }));
 
     } catch (e: any) {
         console.error("Assessment failed", e);
@@ -1814,8 +1508,8 @@ const App = () => {
   };
 
   const handleCopy = () => {
-    if (result) {
-      navigator.clipboard.writeText(result.optimizedPrompt);
+    if (sessionData.result) {
+      navigator.clipboard.writeText(sessionData.result.optimizedPrompt);
       setCopyStatus(true);
       setTimeout(() => setCopyStatus(false), 2000);
     }
@@ -1823,26 +1517,32 @@ const App = () => {
 
   const getModelOptions = () => {
     switch (selectedDomain) {
-      case "image": return IMAGE_TARGET_MODELS;
-      case "writing": return WRITING_TARGET_MODELS;
-      case "general": return GENERAL_TARGET_MODELS;
-      case "coding": return GENERAL_TARGET_MODELS; // Reuse general for coding as it has Claude/Gemini
-      case "video": return [
-          { id: "veo", label: "Veo", description: "Google DeepMind Veo" }, 
-          { id: "sora", label: "Sora", description: "OpenAI Sora" }
+      case DomainId.IMAGE: return IMAGE_TARGET_MODELS;
+      case DomainId.WRITING: return WRITING_TARGET_MODELS;
+      case DomainId.GENERAL: return GENERAL_TARGET_MODELS;
+      case DomainId.CODING: return GENERAL_TARGET_MODELS;
+      case DomainId.VIDEO: return [
+          { id: ModelId.VEO_3_1, label: "Veo 3.1", description: "Google DeepMind Veo 3.1" }, 
+          { id: ModelId.SORA_2, label: "Sora 2.0", description: "OpenAI Sora 2.0" }
       ];
       default: return GENERAL_TARGET_MODELS;
     }
   };
 
+  // --- De-structured session data for easy access in JSX ---
+  const { result, assessment, generatedMedia } = sessionData;
+
   return (
-    <div className="flex h-screen bg-neutral-950 text-neutral-200 font-sans selection:bg-amber-500/30 overflow-hidden">
+    <div className="flex h-screen bg-black text-neutral-200 font-sans selection:bg-amber-500/30 overflow-hidden relative">
+      {/* Background Ambience */}
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-amber-900/10 via-neutral-950 to-black pointer-events-none" />
+      <div className="fixed top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent z-50"></div>
       
       {showWelcome && <WelcomeGuide onClose={closeWelcome} />}
       
       {/* Toast Notification */}
       {toastMessage && (
-         <div className="fixed bottom-6 right-6 bg-green-500 text-black px-4 py-3 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.4)] z-50 animate-bounce flex items-center gap-3 font-bold text-sm border border-green-400">
+         <div className="fixed bottom-6 right-6 bg-emerald-500 text-black px-4 py-3 rounded-xl shadow-[0_0_30px_rgba(16,185,129,0.3)] z-50 animate-bounce flex items-center gap-3 font-bold text-sm border border-emerald-400">
             <div className="bg-black/20 p-1 rounded-full">
               <CheckIcon className="w-4 h-4" /> 
             </div>
@@ -1850,11 +1550,11 @@ const App = () => {
          </div>
       )}
 
-      {/* Sidebar */}
-      <div className={`${showSidebar ? 'w-80' : 'w-0'} bg-neutral-900 border-r border-neutral-800 transition-all duration-300 flex flex-col overflow-hidden relative z-40`}>
-        <div className="p-4 border-b border-neutral-800 flex justify-between items-center">
-          <h2 className="font-bold text-amber-500 flex items-center gap-2">
-            <BookmarkIcon className="w-5 h-5" filled /> Library
+      {/* Glass Sidebar */}
+      <div className={`${showSidebar ? 'w-80 translate-x-0' : 'w-0 -translate-x-full'} absolute md:relative z-40 h-full bg-neutral-900/80 backdrop-blur-xl border-r border-white/5 transition-all duration-500 flex flex-col overflow-hidden`}>
+        <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/20">
+          <h2 className="font-bold text-amber-500 flex items-center gap-2 text-xs uppercase tracking-widest">
+            <BookmarkIcon className="w-4 h-4" filled /> Library
           </h2>
           <button onClick={() => setShowSidebar(false)} className="text-neutral-500 hover:text-neutral-300">
             <XIcon className="w-5 h-5" />
@@ -1862,15 +1562,15 @@ const App = () => {
         </div>
 
         {/* Sidebar Tabs */}
-        <div className="flex border-b border-neutral-800">
+        <div className="flex border-b border-white/5">
           {(['history', 'saved', 'templates'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setSidebarTab(tab)}
-              className={`flex-1 py-3 text-xs font-medium uppercase tracking-wider ${
+              className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-colors ${
                 sidebarTab === tab 
-                  ? 'text-amber-500 border-b-2 border-amber-500 bg-neutral-800/50' 
-                  : 'text-neutral-500 hover:text-neutral-300'
+                  ? 'text-amber-500 bg-amber-500/5 border-b border-amber-500' 
+                  : 'text-neutral-600 hover:text-neutral-300'
               }`}
             >
               {tab}
@@ -1879,46 +1579,46 @@ const App = () => {
         </div>
 
         {/* Search */}
-        <div className="p-4 border-b border-neutral-800">
-          <div className="relative">
-            <SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-neutral-500" />
+        <div className="p-4 border-b border-white/5">
+          <div className="relative group">
+            <SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-neutral-600 group-hover:text-amber-500 transition-colors" />
             <input 
               type="text" 
               placeholder="Search..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg py-2 pl-9 pr-3 text-sm text-neutral-300 focus:outline-none focus:border-amber-500"
+              className="w-full bg-black/40 border border-white/5 rounded-lg py-2 pl-9 pr-3 text-xs text-neutral-300 focus:outline-none focus:border-amber-500/50 transition-colors"
             />
           </div>
         </div>
 
         {/* List Content */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
           {sidebarTab === 'history' && history.filter(i => i.originalPrompt?.toLowerCase().includes(searchQuery.toLowerCase() || "")).map(item => (
-             <div key={item.id} onClick={() => loadHistoryItem(item)} className="p-3 rounded-lg hover:bg-neutral-800 cursor-pointer group transition-colors">
+             <div key={item.id} onClick={() => loadHistoryItem(item)} className="p-3 rounded-lg hover:bg-white/5 cursor-pointer group transition-all border border-transparent hover:border-white/5">
                 <div className="flex justify-between items-start mb-1">
-                   <span className="text-xs text-amber-500 font-mono uppercase">{item.domain}</span>
+                   <span className="text-[10px] text-amber-500 font-bold uppercase opacity-70">{item.domain}</span>
                    <button onClick={(e) => deleteHistoryItem(e, item.id)} className="opacity-0 group-hover:opacity-100 text-neutral-600 hover:text-red-500 transition-opacity">
                      <TrashIcon className="w-3 h-3" />
                    </button>
                 </div>
-                <p className="text-sm text-neutral-300 line-clamp-2">{item.originalPrompt}</p>
-                <span className="text-xs text-neutral-600 mt-2 block">{new Date(item.timestamp).toLocaleDateString()}</span>
+                <p className="text-xs text-neutral-400 line-clamp-2 font-light">{item.originalPrompt}</p>
+                <span className="text-[10px] text-neutral-700 mt-2 block font-mono">{new Date(item.timestamp).toLocaleDateString()}</span>
              </div>
           ))}
           {sidebarTab === 'saved' && savedPrompts.filter(i => i.originalPrompt?.toLowerCase().includes(searchQuery.toLowerCase() || "")).map(item => (
-             <div key={item.id} onClick={() => loadHistoryItem(item)} className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 cursor-pointer group transition-all">
+             <div key={item.id} onClick={() => loadHistoryItem(item)} className="p-3 rounded-lg bg-white/5 border border-white/5 hover:border-amber-500/30 cursor-pointer group transition-all">
                 <div className="flex justify-between items-start mb-1">
-                   <span className="text-xs text-amber-500 font-mono uppercase">{item.domain}</span>
+                   <span className="text-[10px] text-amber-500 font-bold uppercase">{item.domain}</span>
                    <button onClick={(e) => removeFromSaved(e, item.id)} className="opacity-0 group-hover:opacity-100 text-neutral-600 hover:text-red-500 transition-opacity">
                      <TrashIcon className="w-3 h-3" />
                    </button>
                 </div>
-                <p className="text-sm text-neutral-300 line-clamp-2">{item.result.optimizedPrompt}</p>
+                <p className="text-xs text-neutral-300 line-clamp-2">{item.result.optimizedPrompt}</p>
              </div>
           ))}
            {sidebarTab === 'templates' && templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase() || "")).map(item => (
-             <div key={item.id} onClick={() => loadTemplate(item)} className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 cursor-pointer group transition-all relative">
+             <div key={item.id} onClick={() => loadTemplate(item)} className="p-3 rounded-lg bg-white/5 border border-white/5 hover:border-amber-500/30 cursor-pointer group transition-all relative">
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                    <button onClick={(e) => deleteTemplate(e, item.id)} className="text-neutral-600 hover:text-red-500 p-1">
                      <TrashIcon className="w-3.5 h-3.5" />
@@ -1927,15 +1627,15 @@ const App = () => {
                 <div className="flex justify-between items-start mb-1 pr-6">
                    <span className="text-sm font-bold text-amber-500 group-hover:text-amber-400 transition-colors">{item.name}</span>
                 </div>
-                <p className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2 bg-neutral-950 inline-block px-1.5 py-0.5 rounded border border-neutral-800">{item.category}</p>
-                <p className="text-xs text-neutral-400 line-clamp-2 font-mono bg-neutral-950/50 p-2 rounded border border-neutral-800/50 group-hover:border-neutral-700 transition-colors">{item.content}</p>
+                <p className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2 bg-black/40 inline-block px-1.5 py-0.5 rounded border border-white/5">{item.category}</p>
+                <p className="text-xs text-neutral-400 line-clamp-2 font-mono bg-black/20 p-2 rounded border border-white/5 group-hover:border-white/10 transition-colors">{item.content}</p>
              </div>
           ))}
-          {sidebarTab === 'history' && history.length === 0 && <div className="text-center text-neutral-600 py-8 text-sm">No history yet</div>}
+          {sidebarTab === 'history' && history.length === 0 && <div className="text-center text-neutral-700 py-12 text-xs uppercase tracking-widest">No history</div>}
         </div>
         {sidebarTab === 'history' && history.length > 0 && (
-          <div className="p-4 border-t border-neutral-800">
-            <button onClick={clearHistory} className="w-full py-2 text-xs text-red-500 hover:text-red-400 hover:bg-red-950/30 rounded flex items-center justify-center gap-2">
+          <div className="p-4 border-t border-white/5 bg-black/20">
+            <button onClick={clearHistory} className="w-full py-3 text-xs text-red-500/70 hover:text-red-400 hover:bg-red-500/10 rounded flex items-center justify-center gap-2 transition-colors uppercase tracking-widest font-bold">
               <TrashIcon className="w-3 h-3" /> Clear History
             </button>
           </div>
@@ -1943,160 +1643,186 @@ const App = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full relative w-full">
-        <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-6 bg-neutral-950/80 backdrop-blur z-10">
+      <div className="flex-1 flex flex-col h-full relative w-full z-10">
+        <header className="h-20 flex items-center justify-between px-6 md:px-8 border-b border-white/5 bg-neutral-900/40 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-4">
-            <button onClick={() => setShowSidebar(!showSidebar)} className="p-2 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition-colors">
+            <button onClick={() => setShowSidebar(!showSidebar)} className="p-2 hover:bg-white/5 rounded-lg text-neutral-400 hover:text-white transition-colors">
                <LayoutIcon className="w-5 h-5" />
             </button>
-            <div>
-              <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-amber-600">PromptRefine AI</h1>
-              <p className="text-xs text-neutral-500 hidden sm:block">Professional Prompt Engineering Station</p>
+            <div className="flex items-center gap-3">
+              <LogoIcon className="w-8 h-8" />
+              <div>
+                 <h1 className="text-xl font-bold text-white tracking-tight">Prompt<span className="text-amber-500">Refine</span></h1>
+                 <p className="text-[10px] text-neutral-500 uppercase tracking-widest hidden sm:block">Engineering Station v1.0</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
              <button onClick={() => setShowWelcome(true)} className="p-2 text-neutral-500 hover:text-white transition-colors">
                 <HelpIcon className="w-5 h-5" />
              </button>
-             <div className="px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-xs text-neutral-400 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                API Ready
+             <div className="px-3 py-1.5 rounded-full bg-black/40 border border-white/10 text-[10px] font-mono text-neutral-400 flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                SYSTEM_READY
              </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
-           <div className="max-w-4xl mx-auto space-y-8 pb-20">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth custom-scrollbar">
+           <div className="max-w-5xl mx-auto space-y-12 pb-24">
               
               {/* Step 1: Domain & Model */}
-              <div className="space-y-4">
-                 <div className="flex items-center gap-2 text-sm font-medium text-neutral-400">
-                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-neutral-800 text-xs">1</span>
-                    SELECT DOMAIN & MODEL
+              <div className="space-y-6">
+                 <div className="flex items-center gap-3">
+                    <span className="flex items-center justify-center w-6 h-6 rounded bg-white/10 text-xs font-mono text-white">01</span>
+                    <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-widest">Select Domain & Model</h3>
                  </div>
                  
-                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                     {DOMAINS.map(domain => (
                        <button
                          key={domain.id}
                          onClick={() => setSelectedDomain(domain.id)}
-                         className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border transition-all duration-200 ${
+                         className={`group relative flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all duration-300 ${
                             selectedDomain === domain.id 
-                            ? 'bg-amber-500/10 border-amber-500/50 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.15)]' 
-                            : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:bg-neutral-800 hover:border-neutral-700'
+                            ? 'bg-amber-500/10 border-amber-500/50 text-amber-500 shadow-[0_0_25px_rgba(245,158,11,0.2)]' 
+                            : 'bg-white/5 border-white/5 text-neutral-500 hover:bg-white/10 hover:border-white/10 hover:text-white'
                          }`}
                        >
-                         {domain.icon}
-                         <span className="text-xs font-medium">{domain.label}</span>
+                         <div className={`p-2 rounded-full transition-transform duration-300 group-hover:scale-110 ${selectedDomain === domain.id ? 'bg-amber-500/20' : 'bg-black/30'}`}>
+                            {domain.icon}
+                         </div>
+                         <span className="text-xs font-bold tracking-wide">{domain.label}</span>
                        </button>
                     ))}
                  </div>
 
-                 <div className="bg-neutral-900/50 p-4 rounded-xl border border-neutral-800 flex flex-col md:flex-row gap-4 items-center">
-                    <div className="flex-1 w-full">
-                       <label className="block text-xs text-neutral-500 mb-1.5 uppercase tracking-wide">Target Model</label>
-                       <div className="relative">
+                 <div className="bg-neutral-900/60 p-1 rounded-xl border border-white/10 flex flex-col md:flex-row items-stretch backdrop-blur-sm">
+                    <div className="flex-1 p-3">
+                       <label className="block text-[10px] text-neutral-500 mb-2 uppercase tracking-widest font-bold ml-1">Target Model Architecture</label>
+                       <div className="relative group">
                           <select 
                             value={selectedModel} 
                             onChange={(e) => setSelectedModel(e.target.value)}
-                            className="w-full appearance-none bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                            className="w-full appearance-none bg-black/40 border border-white/10 text-white text-sm rounded-lg px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all hover:bg-black/60"
                           >
                              {getModelOptions().map(m => (
                                 <option key={m.id} value={m.id}>{m.label}</option>
                              ))}
                           </select>
-                          <div className="absolute right-3 top-3 pointer-events-none text-neutral-500">
+                          <div className="absolute right-4 top-3.5 pointer-events-none text-neutral-500 group-hover:text-amber-500 transition-colors">
                              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor"><path d="M1 1L5 5L9 1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </div>
                        </div>
                     </div>
-                    <div className="w-full md:w-auto text-xs text-neutral-500 border-l border-neutral-800 pl-4 py-1">
-                       <div className="font-medium text-neutral-300 mb-1">Model Info</div>
-                       {getModelOptions().find(m => m.id === selectedModel)?.description || "Select a model"}
+                    <div className="w-px bg-white/10 my-3 hidden md:block"></div>
+                    <div className="md:w-1/2 p-4 flex flex-col justify-center">
+                       <div className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Model Capability</div>
+                       <p className="text-sm text-neutral-400 font-light">
+                        {getModelOptions().find(m => m.id === selectedModel)?.description || "Select a model to view capabilities."}
+                       </p>
                     </div>
                  </div>
               </div>
 
               {/* Step 2: Input */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                  <div className="flex justify-between items-end">
-                    <div className="flex items-center gap-2 text-sm font-medium text-neutral-400">
-                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-neutral-800 text-xs">2</span>
-                        INPUT {isReverseMode ? "IMAGE" : "DRAFT"}
-                    </div>
                     <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-6 h-6 rounded bg-white/10 text-xs font-mono text-white">02</span>
+                        <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-widest">Input {isReverseMode ? (selectedDomain === DomainId.VIDEO ? "Reference Media" : "Visual Reference") : "Raw Draft"}</h3>
+                    </div>
+                    <div className="flex items-center gap-4">
                         <button 
-                             onClick={() => setUserInput("")}
-                             className="text-xs text-neutral-600 hover:text-red-500 transition-colors mr-2"
-                             hidden={!userInput}
+                             onClick={() => { setUserInput(""); setVideoUrlInput(""); setUploadedImage(null); }}
+                             className="text-xs text-neutral-600 hover:text-red-500 transition-colors uppercase tracking-widest font-bold"
+                             hidden={!userInput && !uploadedImage && !videoUrlInput}
                         >
-                            Clear Input
+                            Clear
                         </button>
-                         {selectedDomain === 'image' && (
+                         {(selectedDomain === DomainId.IMAGE || selectedDomain === DomainId.VIDEO) && (
                             <button 
                               onClick={() => setIsReverseMode(!isReverseMode)}
-                              className="text-xs flex items-center gap-1.5 text-amber-500 hover:text-amber-400 transition-colors"
+                              className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors px-3 py-1.5 rounded-full border ${isReverseMode ? 'bg-amber-500 text-black border-amber-500' : 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:border-amber-500/50'}`}
                             >
                                <UploadIcon className="w-3 h-3" />
-                               {isReverseMode ? "Switch to Text Mode" : "Switch to Reverse Engineer"}
+                               {isReverseMode ? "Switch to Text Mode" : "Reverse Engineer"}
                             </button>
                         )}
                     </div>
                  </div>
 
                  <div className="relative group">
-                    <div className={`absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-purple-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-500 ${isOptimizing ? 'opacity-50 animate-pulse' : ''}`}></div>
-                    <div className="relative bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden">
+                    <div className={`absolute -inset-0.5 bg-gradient-to-r from-amber-500/30 to-purple-600/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-700 ${isOptimizing ? 'opacity-70 animate-pulse' : ''}`}></div>
+                    <div className="relative bg-neutral-900 rounded-xl border border-white/10 overflow-hidden shadow-2xl">
                        {isReverseMode ? (
-                          <div 
-                             onClick={() => fileInputRef.current?.click()}
-                             className="h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-neutral-800/50 transition-colors"
-                          >
-                             {uploadedImage ? (
-                                <img src={uploadedImage} alt="Upload" className="h-full w-full object-contain p-2" />
-                             ) : (
-                                <>
-                                   <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 mb-3 group-hover:scale-110 transition-transform">
-                                      <UploadIcon className="w-6 h-6" />
-                                   </div>
-                                   <p className="text-sm text-neutral-300 font-medium">Click to upload reference image</p>
-                                   <p className="text-xs text-neutral-500 mt-1">JPEG, PNG supported</p>
-                                </>
-                             )}
-                             <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                          <div className="min-h-64 flex flex-col bg-black/40 border-b border-white/5">
+                              {/* Media Upload Area */}
+                              <div 
+                                 onClick={() => fileInputRef.current?.click()}
+                                 className="flex-1 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors p-6"
+                              >
+                                 {uploadedImage ? (
+                                    <img src={uploadedImage} alt="Upload" className="max-h-60 max-w-full object-contain p-2 rounded-lg border border-white/10" />
+                                 ) : (
+                                    <>
+                                       <div className="w-16 h-16 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-neutral-500 mb-4 group-hover:scale-110 group-hover:border-amber-500/50 group-hover:text-amber-500 transition-all shadow-inner">
+                                          <UploadIcon className="w-8 h-8" />
+                                       </div>
+                                       <p className="text-sm text-neutral-300 font-medium">Click to upload {selectedDomain === DomainId.VIDEO ? "video reference frame/screenshot" : "reference image"}</p>
+                                       <p className="text-xs text-neutral-600 mt-1 font-mono">JPEG, PNG supported</p>
+                                    </>
+                                 )}
+                                 <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                              </div>
+
+                              {/* URL Input for Video (Optional) */}
+                              {selectedDomain === DomainId.VIDEO && (
+                                  <div className="p-4 bg-black/60 border-t border-white/5 flex items-center gap-3">
+                                      <LinkIcon className="w-5 h-5 text-neutral-500" />
+                                      <input 
+                                        type="text" 
+                                        value={videoUrlInput}
+                                        onChange={(e) => setVideoUrlInput(e.target.value)}
+                                        placeholder="Or paste video URL (YouTube, Vimeo, etc.) for context analysis..."
+                                        className="w-full bg-transparent text-sm text-white placeholder-neutral-600 focus:outline-none font-mono"
+                                      />
+                                  </div>
+                              )}
                           </div>
                        ) : (
                           <textarea
                              value={userInput}
                              onChange={(e) => setUserInput(e.target.value)}
                              placeholder={
-                                selectedDomain === 'coding' ? "Paste your broken code or describe the feature logic..." :
-                                selectedDomain === 'image' ? "A cat sitting on a neon roof..." :
-                                "Describe your idea broadly..."
+                                selectedDomain === DomainId.CODING ? "// Paste your broken code here..." :
+                                selectedDomain === DomainId.IMAGE ? "Imagine a futuristic city..." :
+                                selectedDomain === DomainId.VIDEO ? "A drone shot flying over a cyberpunk city..." :
+                                "Type your rough idea here..."
                              }
-                             className="w-full h-40 bg-transparent p-4 text-base placeholder-neutral-600 focus:outline-none resize-none"
+                             className="w-full h-48 bg-black/40 p-6 text-base text-neutral-200 placeholder-neutral-700 focus:outline-none resize-none font-mono leading-relaxed"
                           />
                        )}
                        
-                       <div className="p-3 bg-neutral-950/30 border-t border-neutral-800 flex flex-col sm:flex-row justify-between items-center gap-3">
-                          {/* Advanced Toggles - Improved UI */}
+                       <div className="p-4 bg-neutral-900 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                          {/* Advanced Toggles */}
                           <div className="flex items-center gap-3">
                              <button 
                                 onClick={() => setUseThinking(!useThinking)}
-                                className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full transition-all border ${
+                                className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-all border ${
                                     useThinking 
-                                    ? 'bg-purple-900/50 text-purple-200 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]' 
-                                    : 'bg-neutral-800/50 text-neutral-500 border-neutral-700 hover:border-neutral-600'
+                                    ? 'bg-purple-500/10 text-purple-400 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]' 
+                                    : 'bg-white/5 text-neutral-500 border-white/5 hover:border-white/20'
                                 }`}
                              >
                                 <BrainIcon className="w-3 h-3" /> Deep Reasoning
                              </button>
                              <button 
                                 onClick={() => setUseGrounding(!useGrounding)}
-                                className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full transition-all border ${
+                                className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-all border ${
                                     useGrounding 
-                                    ? 'bg-blue-900/50 text-blue-200 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' 
-                                    : 'bg-neutral-800/50 text-neutral-500 border-neutral-700 hover:border-neutral-600'
+                                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]' 
+                                    : 'bg-white/5 text-neutral-500 border-white/5 hover:border-white/20'
                                 }`}
                              >
                                 <GlobeIcon className="w-3 h-3" /> Search Grounding
@@ -2105,19 +1831,19 @@ const App = () => {
 
                           <button
                              onClick={isReverseMode ? handleReverseEngineer : handleOptimize}
-                             disabled={isOptimizing || isAnalyzing || (!userInput.trim() && !uploadedImage)}
+                             disabled={isOptimizing || isAnalyzing || (!userInput.trim() && !uploadedImage && !videoUrlInput)}
                              className={`
-                                flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-sm transition-all shadow-lg w-full sm:w-auto justify-center
+                                flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-xs uppercase tracking-widest transition-all shadow-lg w-full sm:w-auto justify-center
                                 ${isOptimizing || isAnalyzing 
-                                   ? 'bg-neutral-800 text-neutral-400 cursor-wait' 
-                                   : 'bg-amber-500 hover:bg-amber-400 text-black hover:shadow-amber-500/20'
+                                   ? 'bg-neutral-800 text-neutral-500 cursor-wait border border-white/5' 
+                                   : 'bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20 hover:shadow-amber-500/40 hover:scale-105'
                                 }
                              `}
                           >
                              {isOptimizing || isAnalyzing ? (
-                                <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div> Processing...</>
+                                <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div> Processing</>
                              ) : (
-                                <><SparklesIcon className="w-4 h-4" /> {isReverseMode ? "Analyze & Reverse" : "Refine Prompt"}</>
+                                <><SparklesIcon className="w-4 h-4" /> {isReverseMode ? "Analyze & Reverse" : "Execute Refine"}</>
                              )}
                           </button>
                        </div>
@@ -2127,77 +1853,82 @@ const App = () => {
 
               {/* Step 3: Result */}
               {result && (
-                  <div className="space-y-6 animate-fade-in">
-                      <div className="flex items-center gap-2 text-sm font-medium text-neutral-400">
-                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 text-xs">3</span>
-                          <span className="text-amber-500">OPTIMIZATION RESULT</span>
+                  <div className="space-y-8 animate-fade-in">
+                      <div className="flex items-center gap-3">
+                          <span className="flex items-center justify-center w-6 h-6 rounded bg-amber-500 text-xs font-mono text-black font-bold">03</span>
+                          <span className="text-sm font-bold text-amber-500 uppercase tracking-widest">Result & Analysis</span>
                       </div>
 
-                      <div className="bg-neutral-900 border border-amber-500/30 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.05)]">
-                          <div className="flex border-b border-neutral-800 bg-neutral-800/30">
-                              <div className="flex-1 p-3 text-xs font-mono text-neutral-500 uppercase tracking-widest pl-6">
-                                  {selectedModel} OUTPUT
+                      <div className="bg-neutral-900/80 backdrop-blur-md border border-amber-500/30 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.05)] relative group">
+                          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500/0 via-amber-500 to-amber-500/0 opacity-50"></div>
+                          
+                          <div className="flex border-b border-white/5 bg-black/20">
+                              <div className="flex-1 p-4 flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                                  <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
+                                      {selectedModel} OUTPUT
+                                  </div>
                               </div>
-                              <div className="flex divide-x divide-neutral-800">
+                              <div className="flex divide-x divide-white/5">
                                   <button 
                                      onClick={handleTTS}
                                      disabled={isPlayingAudio}
-                                     className={`p-3 hover:bg-neutral-800 transition-colors flex items-center gap-2 text-xs font-medium ${isPlayingAudio ? 'text-amber-500 animate-pulse' : 'text-neutral-400 hover:text-white'}`}
+                                     className={`px-4 py-2 hover:bg-white/5 transition-colors flex items-center gap-2 text-[10px] font-bold tracking-wider ${isPlayingAudio ? 'text-amber-500 animate-pulse' : 'text-neutral-400 hover:text-white'}`}
                                   >
-                                      <SpeakerIcon className="w-4 h-4" />
+                                      <SpeakerIcon className="w-3.5 h-3.5" />
                                       {isPlayingAudio ? "PLAYING..." : "LISTEN"}
                                   </button>
-                                  <button onClick={handleCopy} className="p-3 hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors flex items-center gap-2 text-xs font-medium">
-                                      {copyStatus ? <CheckIcon className="w-4 h-4 text-green-500" /> : <CopyIcon className="w-4 h-4" />}
+                                  <button onClick={handleCopy} className="px-4 py-2 hover:bg-white/5 text-neutral-400 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-bold tracking-wider">
+                                      {copyStatus ? <CheckIcon className="w-3.5 h-3.5 text-green-500" /> : <CopyIcon className="w-3.5 h-3.5" />}
                                       {copyStatus ? "COPIED" : "COPY"}
                                   </button>
-                                  <button onClick={handleSavePrompt} className={`p-3 hover:bg-neutral-800 transition-colors flex items-center gap-2 text-xs font-medium ${saveStatus ? 'text-green-500' : 'text-neutral-400 hover:text-white'}`}>
-                                      <BookmarkIcon className="w-4 h-4" filled={saveStatus} />
+                                  <button onClick={handleSavePrompt} className={`px-4 py-2 hover:bg-white/5 transition-colors flex items-center gap-2 text-[10px] font-bold tracking-wider ${saveStatus ? 'text-green-500' : 'text-neutral-400 hover:text-white'}`}>
+                                      <BookmarkIcon className="w-3.5 h-3.5" filled={saveStatus} />
                                       {saveStatus ? "SAVED" : "SAVE"}
                                   </button>
-                                  <button onClick={() => openSaveTemplateModal(result.optimizedPrompt)} className="p-3 hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors flex items-center gap-2 text-xs font-medium">
-                                      <TagIcon className="w-4 h-4" />
+                                  <button onClick={() => openSaveTemplateModal(result.optimizedPrompt)} className="px-4 py-2 hover:bg-white/5 text-neutral-400 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-bold tracking-wider">
+                                      <TagIcon className="w-3.5 h-3.5" />
                                       TEMPLATE
                                   </button>
                               </div>
                           </div>
                           
-                          <div className="p-6">
-                             <div className="font-mono text-sm leading-relaxed text-neutral-200 whitespace-pre-wrap">
+                          <div className="p-8">
+                             <div className="font-mono text-sm leading-relaxed text-amber-50 whitespace-pre-wrap selection:bg-amber-500/30">
                                  {result.optimizedPrompt}
                              </div>
                              
                              {/* --- Image Generation Preview Section --- */}
-                             {selectedDomain === 'image' && (
-                                <div className="mt-8 pt-6 border-t border-neutral-800">
+                             {selectedDomain === DomainId.IMAGE && (
+                                <div className="mt-8 pt-8 border-t border-white/5">
                                    <div className="flex items-center justify-between mb-4">
-                                       <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Visual Verification</h4>
-                                       {!generatedImage && !isGeneratingImage && (
+                                       <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Visual Verification Protocol</h4>
+                                       {!generatedMedia.image && !isGeneratingImage && (
                                           <button 
                                             onClick={handleGenerateImage}
-                                            className="text-xs flex items-center gap-2 text-amber-500 hover:text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-lg hover:bg-amber-500/10 transition-colors"
+                                            className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 text-amber-500 hover:text-amber-300 border border-amber-500/20 px-4 py-2 rounded-full hover:bg-amber-500/10 transition-colors"
                                           >
-                                             <SparklesIcon className="w-3 h-3" /> Generate Preview (Gemini)
+                                             <SparklesIcon className="w-3 h-3" /> Generate Preview
                                           </button>
                                        )}
                                    </div>
                                    
                                    {isGeneratingImage && (
-                                      <div className="h-64 bg-neutral-950 rounded-lg border border-neutral-800 flex flex-col items-center justify-center gap-3 animate-pulse">
-                                         <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-                                         <p className="text-xs text-neutral-500 font-mono">RENDERING PREVIEW...</p>
+                                      <div className="h-64 bg-black/40 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-4 animate-pulse">
+                                         <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                                         <p className="text-[10px] text-amber-500 font-mono tracking-widest">RENDERING_PIXELS...</p>
                                       </div>
                                    )}
                                    
-                                   {generatedImage && (
-                                      <div className="relative group bg-neutral-950 rounded-lg overflow-hidden border border-neutral-800">
-                                          <img src={generatedImage} alt="Generated Preview" className="w-full h-auto max-h-[500px] object-contain" />
-                                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                             <a href={generatedImage} download="prompt-preview.png" className="p-3 bg-white text-black rounded-full hover:scale-110 transition-transform">
-                                                <DownloadIcon className="w-5 h-5" />
+                                   {generatedMedia.image && (
+                                      <div className="relative group bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                                          <img src={generatedMedia.image} alt="Generated Preview" className="w-full h-auto max-h-[500px] object-contain" />
+                                          <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm">
+                                             <a href={generatedMedia.image} download="prompt-preview.png" className="p-4 bg-white text-black rounded-full hover:scale-110 transition-transform shadow-lg">
+                                                <DownloadIcon className="w-6 h-6" />
                                              </a>
-                                             <button onClick={handleGenerateImage} className="p-3 bg-neutral-800 text-white rounded-full hover:scale-110 transition-transform">
-                                                <RefreshIcon className="w-5 h-5" />
+                                             <button onClick={handleGenerateImage} className="p-4 bg-neutral-800 text-white rounded-full hover:scale-110 transition-transform shadow-lg border border-white/10">
+                                                <RefreshIcon className="w-6 h-6" />
                                              </button>
                                           </div>
                                       </div>
@@ -2206,32 +1937,32 @@ const App = () => {
                              )}
 
                              {/* --- Video Generation Preview Section (VEO) --- */}
-                             {selectedDomain === 'video' && (
-                                <div className="mt-8 pt-6 border-t border-neutral-800">
+                             {selectedDomain === DomainId.VIDEO && (
+                                <div className="mt-8 pt-8 border-t border-white/5">
                                    <div className="flex items-center justify-between mb-4">
-                                       <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Veo Simulation</h4>
-                                       {!generatedVideo && !isGeneratingVideo && (
+                                       <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Veo Render Engine</h4>
+                                       {!generatedMedia.video && !isGeneratingVideo && (
                                           <button 
                                             onClick={handleGenerateVideo}
-                                            className="text-xs flex items-center gap-2 text-green-500 hover:text-green-400 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/10 transition-colors"
+                                            className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 text-green-500 hover:text-green-400 border border-green-500/20 px-4 py-2 rounded-full hover:bg-green-500/10 transition-colors"
                                           >
-                                             <VideoIcon className="w-3 h-3" /> Generate Video (Veo)
+                                             <VideoIcon className="w-3 h-3" /> Generate Video
                                           </button>
                                        )}
                                    </div>
                                    
                                    {isGeneratingVideo && (
-                                      <div className="h-64 bg-neutral-950 rounded-lg border border-neutral-800 flex flex-col items-center justify-center gap-3 animate-pulse">
-                                         <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-                                         <p className="text-xs text-neutral-500 font-mono uppercase">{videoProgress || "Initializing..."}</p>
+                                      <div className="h-64 bg-black/40 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-4 animate-pulse">
+                                         <div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                                         <p className="text-[10px] text-green-500 font-mono tracking-widest uppercase">{videoProgress || "INITIALIZING..."}</p>
                                       </div>
                                    )}
                                    
-                                   {generatedVideo && (
-                                      <div className="relative group bg-neutral-950 rounded-lg overflow-hidden border border-neutral-800">
-                                          <video controls src={generatedVideo} className="w-full h-auto max-h-[500px] rounded-lg" />
-                                          <div className="p-3 flex justify-end">
-                                             <a href={generatedVideo} download="veo-preview.mp4" className="text-xs flex items-center gap-2 text-green-500 hover:text-white">
+                                   {generatedMedia.video && (
+                                      <div className="relative group bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                                          <video controls src={generatedMedia.video} className="w-full h-auto max-h-[500px]" />
+                                          <div className="p-3 flex justify-end bg-black/40 absolute bottom-0 w-full backdrop-blur-md">
+                                             <a href={generatedMedia.video} download="veo-preview.mp4" className="text-xs flex items-center gap-2 text-green-500 hover:text-white font-bold uppercase tracking-wider">
                                                 <DownloadIcon className="w-4 h-4" /> Download MP4
                                              </a>
                                           </div>
@@ -2241,25 +1972,25 @@ const App = () => {
                              )}
 
                              {/* --- Text Simulation Section (New) --- */}
-                             {(selectedDomain !== 'image' && selectedDomain !== 'video') && (
-                                <div className="mt-8 pt-6 border-t border-neutral-800">
+                             {(selectedDomain !== DomainId.IMAGE && selectedDomain !== DomainId.VIDEO) && (
+                                <div className="mt-8 pt-8 border-t border-white/5">
                                    <div className="flex items-center justify-between mb-4">
-                                      <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Simulation Loop</h4>
+                                      <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Logic Simulation Loop</h4>
                                       <button 
                                         onClick={handleGenerateText}
                                         disabled={isGeneratingText}
-                                        className="text-xs flex items-center gap-2 text-blue-400 hover:text-blue-300 border border-blue-500/30 px-3 py-1.5 rounded-lg hover:bg-blue-500/10 transition-colors"
+                                        className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 text-blue-400 hover:text-blue-300 border border-blue-500/20 px-4 py-2 rounded-full hover:bg-blue-500/10 transition-colors"
                                       >
                                          {isGeneratingText ? <span className="animate-spin">⟳</span> : <PlayIcon className="w-3 h-3" />}
-                                         {isGeneratingText ? "Running..." : "Run Simulation (Gemini)"}
+                                         {isGeneratingText ? "Running..." : "Run Simulation"}
                                       </button>
                                    </div>
 
-                                   {generatedText && (
-                                       <div className="bg-neutral-950 rounded-lg border border-neutral-800 p-4 relative animate-fade-in">
-                                           <div className="absolute top-0 left-0 px-2 py-1 bg-neutral-800 rounded-br text-[10px] text-neutral-400 font-mono">OUTPUT</div>
-                                           <div className="mt-4 text-sm text-neutral-300 whitespace-pre-wrap font-mono max-h-60 overflow-y-auto custom-scrollbar">
-                                               {generatedText}
+                                   {generatedMedia.text && (
+                                       <div className="bg-black/40 rounded-xl border border-white/5 p-6 relative animate-fade-in font-mono text-sm text-blue-100/80 leading-relaxed shadow-inner">
+                                           <div className="absolute top-0 left-0 px-2 py-1 bg-blue-500/20 text-blue-300 text-[10px] font-bold tracking-widest uppercase rounded-br-lg">Output Stream</div>
+                                           <div className="mt-4 whitespace-pre-wrap max-h-60 overflow-y-auto custom-scrollbar">
+                                               {generatedMedia.text}
                                            </div>
                                        </div>
                                    )}
@@ -2267,121 +1998,120 @@ const App = () => {
                              )}
                           </div>
 
-                          <div className="bg-neutral-950/50 p-6 border-t border-neutral-800">
-                              <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">Analysis & Strategy</h4>
-                              <div className="prose prose-invert prose-sm max-w-none text-neutral-400">
+                          <div className="bg-black/30 p-8 border-t border-white/5">
+                              <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-4">Engineering Notes</h4>
+                              <div className="prose prose-invert prose-sm max-w-none text-neutral-400 font-light">
                                   <p className="whitespace-pre-wrap">{result.explanation}</p>
                               </div>
                               
                               <div className="mt-6 flex flex-wrap gap-2">
                                   {result.addedTerms.map((term, i) => (
-                                      <span key={i} className="px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs text-neutral-400 font-mono">
-                                          {term}
+                                      <span key={i} className="px-3 py-1 rounded-full bg-white/5 border border-white/5 text-[10px] text-neutral-400 font-mono tracking-wide hover:bg-white/10 transition-colors cursor-default">
+                                          #{term}
                                       </span>
                                   ))}
                               </div>
                           </div>
                       </div>
 
-                      {/* Assessment Section (Redesigned) */}
+                      {/* Assessment Section (Redesigned HUD Style) */}
                       {!assessment ? (
-                         <div className="border border-neutral-800 rounded-xl p-6 bg-neutral-900/50 flex flex-col items-center justify-center text-center space-y-4">
-                             <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-500">
-                                <TrendingUpIcon className="w-6 h-6" />
+                         <div className="border border-white/5 rounded-2xl p-10 bg-neutral-900/40 backdrop-blur-sm flex flex-col items-center justify-center text-center space-y-6 hover:bg-neutral-900/60 transition-colors">
+                             <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-neutral-600 border border-white/5">
+                                <TrendingUpIcon className="w-8 h-8" />
                              </div>
                              <div>
-                                <h4 className="text-sm font-bold text-neutral-300">Commercial Viability Scan</h4>
-                                <p className="text-xs text-neutral-500 mt-1 max-w-xs mx-auto">Analyze market potential, replicability, and monetization channels for this prompt.</p>
+                                <h4 className="text-sm font-bold text-white uppercase tracking-widest">Market Diagnostic</h4>
+                                <p className="text-xs text-neutral-500 mt-2 max-w-sm mx-auto leading-relaxed">Run a commercial viability scan to analyze market potential, replicability, and monetization channels.</p>
                              </div>
                              <button 
                                onClick={handleAssessValue} 
                                disabled={isAssessing}
-                               className="px-6 py-2 bg-neutral-800 hover:bg-neutral-700 hover:text-white text-neutral-400 text-xs font-bold tracking-wider rounded-lg transition-all border border-neutral-700 flex items-center gap-2"
+                               className="px-8 py-3 bg-white text-black text-xs font-bold tracking-widest uppercase rounded-full hover:scale-105 transition-all shadow-lg flex items-center gap-3"
                              >
-                                {isAssessing ? <span className="animate-pulse">SCANNING...</span> : "RUN DIAGNOSTIC"}
+                                {isAssessing ? <span className="animate-pulse">SCANNING DATA...</span> : "INITIATE SCAN"}
                              </button>
                          </div>
                       ) : (
-                         <div className="relative overflow-hidden rounded-xl border border-emerald-500/30 bg-black shadow-[0_0_40px_rgba(16,185,129,0.1)] animate-fade-in group">
-                            {/* Decorative Cyberpunk Elements */}
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50"></div>
-                            <div className="absolute top-0 right-0 p-2 opacity-50">
-                               <div className="flex gap-1">
-                                  <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></div>
-                                  <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse delay-75"></div>
-                                  <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse delay-150"></div>
-                               </div>
+                         <div className="relative overflow-hidden rounded-2xl border border-indigo-500/30 bg-black/80 shadow-[0_0_50px_rgba(99,102,241,0.15)] animate-fade-in group">
+                            {/* Decorative HUD Elements */}
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent"></div>
+                            <div className="absolute top-4 right-4 flex gap-1">
+                               <div className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse"></div>
+                               <div className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse delay-75"></div>
+                               <div className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse delay-150"></div>
                             </div>
                             
                             {/* Header */}
-                            <div className="bg-emerald-950/20 border-b border-emerald-500/20 p-4 flex justify-between items-center">
-                               <h4 className="text-xs font-bold text-emerald-400 tracking-[0.2em] flex items-center gap-2">
-                                  <div className="w-2 h-2 bg-emerald-500 rotate-45"></div>
+                            <div className="bg-indigo-950/20 border-b border-indigo-500/20 p-5 flex justify-between items-center">
+                               <h4 className="text-xs font-bold text-indigo-400 tracking-[0.2em] flex items-center gap-3">
+                                  <div className="w-2 h-2 bg-indigo-500 rotate-45"></div>
                                   MARKET_VALUE_DIAGNOSTIC
                                </h4>
-                               <span className="text-[10px] font-mono text-emerald-600/70">SYS.READY</span>
+                               <span className="text-[10px] font-mono text-indigo-500/70">SYS.ANALYSIS.COMPLETE</span>
                             </div>
 
-                            <div className="p-6 grid md:grid-cols-3 gap-8">
+                            <div className="p-8 grid md:grid-cols-3 gap-10">
                                {/* Score Column */}
-                               <div className="flex flex-col items-center justify-center text-center relative">
-                                  <div className="relative w-32 h-32 flex items-center justify-center mb-4">
+                               <div className="flex flex-col items-center justify-center text-center relative p-4 border border-white/5 rounded-xl bg-white/5">
+                                  <div className="relative w-36 h-36 flex items-center justify-center mb-6">
                                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="45" fill="none" stroke="#064e3b" strokeWidth="8" />
+                                        <circle cx="50" cy="50" r="45" fill="none" stroke="#1e1b4b" strokeWidth="6" />
                                         <circle 
-                                          cx="50" cy="50" r="45" fill="none" stroke="#10b981" strokeWidth="8" 
+                                          cx="50" cy="50" r="45" fill="none" stroke="#6366f1" strokeWidth="6" 
                                           strokeDasharray={`${assessment.score * 2.83} 283`}
-                                          className="transition-all duration-1000 ease-out"
+                                          strokeLinecap="round"
+                                          className="drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]"
                                         />
                                      </svg>
                                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-3xl font-bold text-white font-mono">{assessment.score}</span>
-                                        <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Index</span>
+                                        <span className="text-4xl font-bold text-white font-mono tracking-tighter">{assessment.score}</span>
+                                        <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest mt-1">Index</span>
                                      </div>
                                   </div>
-                                  <div className={`px-3 py-1 rounded-sm text-xs font-bold border ${assessment.score > 80 ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : 'border-yellow-500 text-yellow-500 bg-yellow-500/10'}`}>
+                                  <div className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border ${assessment.score > 80 ? 'border-indigo-500 text-indigo-300 bg-indigo-500/20' : 'border-yellow-500 text-yellow-500 bg-yellow-500/10'}`}>
                                      {assessment.commercialValue?.toUpperCase() || "UNKNOWN"} POTENTIAL
                                   </div>
                                </div>
 
                                {/* Details Column */}
-                               <div className="md:col-span-2 space-y-5">
+                               <div className="md:col-span-2 space-y-6">
                                   <div>
-                                     <p className="text-[10px] text-emerald-600 font-bold uppercase mb-1">Target Sector</p>
+                                     <p className="text-[10px] text-indigo-400 font-bold uppercase mb-2 tracking-widest">Target Sector</p>
                                      <div className="flex flex-wrap gap-2">
                                         {assessment.targetAudience.map(a => (
-                                           <span key={a} className="px-2 py-1 bg-emerald-900/30 border border-emerald-500/30 text-emerald-300 text-xs font-mono rounded-sm">
+                                           <span key={a} className="px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/30 text-indigo-200 text-xs font-mono rounded-md hover:bg-indigo-500/20 transition-colors">
                                               [{a}]
                                            </span>
                                         ))}
                                      </div>
                                   </div>
                                   
-                                  <div className="grid grid-cols-2 gap-4">
-                                     <div>
-                                        <p className="text-[10px] text-emerald-600 font-bold uppercase mb-1">Monetization Channels</p>
-                                        <ul className="space-y-1">
+                                  <div className="grid grid-cols-2 gap-6">
+                                     <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                        <p className="text-[10px] text-indigo-400 font-bold uppercase mb-3 tracking-widest">Monetization</p>
+                                        <ul className="space-y-2">
                                            {assessment.monetizationChannels.slice(0, 3).map(c => (
                                               <li key={c} className="text-xs text-neutral-300 flex items-center gap-2">
-                                                 <span className="w-1 h-1 bg-emerald-500"></span> {c}
+                                                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]"></span> {c}
                                               </li>
                                            ))}
                                         </ul>
                                      </div>
-                                     <div>
-                                        <p className="text-[10px] text-emerald-600 font-bold uppercase mb-1">Risk Assessment</p>
-                                        <ul className="space-y-1">
+                                     <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                        <p className="text-[10px] text-indigo-400 font-bold uppercase mb-3 tracking-widest">Risk Factors</p>
+                                        <ul className="space-y-2">
                                            {assessment.riskFactors.slice(0, 2).map(r => (
                                               <li key={r} className="text-xs text-neutral-400 flex items-center gap-2">
-                                                 <span className="text-red-500">⚠</span> {r}
+                                                 <AlertIcon className="w-3 h-3 text-red-400" /> {r}
                                               </li>
                                            ))}
                                         </ul>
                                      </div>
                                   </div>
                                   
-                                  <div className="pt-3 border-t border-neutral-800">
-                                     <p className="text-sm text-neutral-300 italic">"{assessment.reasoning}"</p>
+                                  <div className="pt-4 border-t border-indigo-500/10">
+                                     <p className="text-sm text-neutral-300 font-light italic border-l-2 border-indigo-500 pl-4 py-1">"{assessment.reasoning}"</p>
                                   </div>
                                </div>
                             </div>
@@ -2396,47 +2126,48 @@ const App = () => {
 
       {/* Template Modal */}
       {isTemplateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fade-in">
-              <h3 className="text-lg font-bold text-white mb-4">Save as Template</h3>
-              <div className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in">
+           <div className="bg-neutral-900 border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-purple-500 to-amber-500"></div>
+              <h3 className="text-lg font-bold text-white mb-6 uppercase tracking-widest">Save Template</h3>
+              <div className="space-y-5">
                  <div>
-                    <label className="block text-xs text-neutral-500 mb-1">Template Name <span className="text-red-500">*</span></label>
+                    <label className="block text-[10px] text-neutral-500 mb-1.5 uppercase tracking-widest font-bold">Name <span className="text-amber-500">*</span></label>
                     <input 
                       autoFocus
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-sm text-white focus:border-amber-500 focus:outline-none"
+                      className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-amber-500 focus:outline-none transition-colors"
                       value={newTemplateName}
                       onChange={e => setNewTemplateName(e.target.value)}
                       placeholder="My Super Prompt"
                     />
                  </div>
                  <div>
-                    <label className="block text-xs text-neutral-500 mb-1">Category</label>
+                    <label className="block text-[10px] text-neutral-500 mb-1.5 uppercase tracking-widest font-bold">Category</label>
                     <input 
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-sm text-white focus:border-amber-500 focus:outline-none"
+                      className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-amber-500 focus:outline-none transition-colors"
                       value={newTemplateCategory}
                       onChange={e => setNewTemplateCategory(e.target.value)}
                       placeholder="e.g. Marketing, Coding, Art"
                     />
                  </div>
                  <div>
-                    <label className="block text-xs text-neutral-500 mb-1">Content <span className="text-red-500">*</span></label>
+                    <label className="block text-[10px] text-neutral-500 mb-1.5 uppercase tracking-widest font-bold">Content <span className="text-amber-500">*</span></label>
                     <textarea 
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-neutral-300 font-mono h-24 focus:border-amber-500 focus:outline-none resize-none"
+                      className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-xs text-neutral-300 font-mono h-24 focus:border-amber-500 focus:outline-none resize-none custom-scrollbar"
                       value={templateContentToSave}
                       onChange={e => setTemplateContentToSave(e.target.value)}
                     />
                  </div>
                  
                  {templateError && (
-                    <div className="text-xs text-red-500 bg-red-950/20 p-2 rounded border border-red-500/20 flex items-center gap-2">
-                       <AlertIcon className="w-3 h-3" /> {templateError}
+                    <div className="text-xs text-red-400 bg-red-950/30 p-3 rounded border border-red-500/20 flex items-center gap-2">
+                       <AlertIcon className="w-4 h-4" /> {templateError}
                     </div>
                  )}
 
-                 <div className="flex gap-3 mt-6">
-                    <button onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-neutral-800 text-neutral-400 hover:bg-neutral-800 transition-colors text-sm">Cancel</button>
-                    <button onClick={confirmSaveTemplate} className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black font-medium hover:bg-amber-400 transition-colors text-sm">Save Template</button>
+                 <div className="flex gap-3 mt-8">
+                    <button onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-3 rounded-lg border border-white/10 text-neutral-400 hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-widest">Cancel</button>
+                    <button onClick={confirmSaveTemplate} className="flex-1 py-3 rounded-lg bg-amber-500 text-black font-bold hover:bg-amber-400 transition-colors text-xs uppercase tracking-widest shadow-lg shadow-amber-500/20">Save</button>
                  </div>
               </div>
            </div>
