@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 // --- Constants & Enums (Refactor Point 2: No Magic Strings) ---
 const DomainId = {
@@ -222,14 +222,6 @@ const PlayIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const SpeakerIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M11 5L6 9H2v6h4l5 4V5z" />
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-    </svg>
-  );
-
 const ArrowRightIcon = ({ className }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="M5 12h14" />
@@ -431,35 +423,6 @@ const cleanAndParseJSON = (str: string, defaultVal: any = {}) => {
     }
   }
 };
-
-function decode(base64: string) {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
-async function decodeAudioData(
-  data: Uint8Array,
-  ctx: AudioContext,
-  sampleRate: number,
-  numChannels: number,
-): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
-  const frameCount = dataInt16.length / numChannels;
-  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-
-  for (let channel = 0; channel < numChannels; channel++) {
-    const channelData = buffer.getChannelData(channel);
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-    }
-  }
-  return buffer;
-}
 
 
 // --- Strategy Pattern: System Instruction Generator (Refactor Point 1) ---
@@ -760,9 +723,6 @@ const App = () => {
   const [videoUrlInput, setVideoUrlInput] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // TTS State
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   const [copyStatus, setCopyStatus] = useState(false);
   const [saveStatus, setSaveStatus] = useState(false);
@@ -1124,55 +1084,6 @@ const App = () => {
       }
   };
 
-  const handleTTS = async () => {
-      const { result } = sessionData;
-      if (!result?.optimizedPrompt) return;
-      setIsPlayingAudio(true);
-      
-      try {
-          await ensureApiKey();
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-          
-          const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash-preview-tts",
-              contents: [{ parts: [{ text: result.optimizedPrompt }] }],
-              config: {
-                  responseModalities: [Modality.AUDIO],
-                  speechConfig: {
-                      voiceConfig: {
-                          prebuiltVoiceConfig: { voiceName: 'Kore' },
-                      },
-                  },
-              },
-          });
-
-          const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-          if (!base64Audio) throw new Error("No audio data returned");
-
-          const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
-          const outputNode = outputAudioContext.createGain();
-          outputNode.connect(outputAudioContext.destination);
-
-          const audioBuffer = await decodeAudioData(
-              decode(base64Audio),
-              outputAudioContext,
-              24000,
-              1,
-          );
-          
-          const source = outputAudioContext.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(outputNode);
-          source.onended = () => setIsPlayingAudio(false);
-          source.start();
-
-      } catch (error) {
-          console.error("TTS failed:", error);
-          alert("Failed to generate audio.");
-          setIsPlayingAudio(false);
-      }
-  };
-
   // Refactor Point 4: Modular Reverse Engineering with Strict Image JSON
   const handleReverseEngineer = async () => {
     if (!uploadedImage && !videoUrlInput) return;
@@ -1189,11 +1100,14 @@ const App = () => {
         let responseSchema = undefined;
         let responseMimeType = undefined;
 
-        // --- Logic Branching: Image vs Video ---
+        // --- Logic Branching: Image Only ---
         if (selectedDomain === DomainId.IMAGE && uploadedImage) {
             // STRICT IMAGE JSON PROTOCOL
             const base64Data = uploadedImage.split(',')[1];
-            parts.push({ inlineData: { mimeType: 'image/jpeg', data: base64Data } });
+            // Extract real MIME type
+            const mimeType = uploadedImage.substring(uploadedImage.indexOf(":") + 1, uploadedImage.indexOf(";"));
+            
+            parts.push({ inlineData: { mimeType: mimeType, data: base64Data } });
             contextText = "Analyze this image and reverse engineer it into a JSON structure.";
             
             systemInstruction = `
@@ -1224,35 +1138,9 @@ const App = () => {
                   addedTerms: { type: Type.ARRAY, items: { type: Type.STRING } },
                 },
             };
-        } else if (selectedDomain === DomainId.VIDEO) {
-             // FLEXIBLE VIDEO LOGIC (As requested: Not fully decided yet, use context logic)
-             if (uploadedImage) {
-                const base64Data = uploadedImage.split(',')[1];
-                parts.push({ inlineData: { mimeType: 'image/jpeg', data: base64Data } });
-                contextText += " Use this reference frame. ";
-             }
-             if (videoUrlInput) {
-                contextText += ` Context URL: ${videoUrlInput}. Infer style from this link's context/fame.`;
-             }
-             contextText += " Analyze content and create a video generation prompt.";
-
-             // We use a looser instruction for Video as per request, but still ask for JSON structure output
-             systemInstruction = `
-               You are an expert Video Prompt Engineer.
-               Analyze the input (Reference Frame or URL Context) and reverse engineer a prompt for ${selectedModel}.
-               Focus on: Camera Movement, Lighting, Pacing, and Action.
-               Return JSON.
-             `;
-              responseMimeType = "application/json";
-              responseSchema = {
-                type: Type.OBJECT,
-                properties: {
-                  optimizedPrompt: { type: Type.STRING },
-                  explanation: { type: Type.STRING },
-                  addedTerms: { type: Type.ARRAY, items: { type: Type.STRING } },
-                },
-            };
-        }
+        } 
+        
+        // Removed Video Logic as requested.
 
         parts.push({ text: contextText });
 
@@ -1740,7 +1628,7 @@ const App = () => {
                         >
                             Clear
                         </button>
-                         {(selectedDomain === DomainId.IMAGE || selectedDomain === DomainId.VIDEO) && (
+                         {selectedDomain === DomainId.IMAGE && (
                             <button 
                               onClick={() => setIsReverseMode(!isReverseMode)}
                               className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors px-3 py-1.5 rounded-full border ${isReverseMode ? 'bg-amber-500 text-black border-amber-500' : 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:border-amber-500/50'}`}
@@ -1870,14 +1758,6 @@ const App = () => {
                                   </div>
                               </div>
                               <div className="flex divide-x divide-white/5">
-                                  <button 
-                                     onClick={handleTTS}
-                                     disabled={isPlayingAudio}
-                                     className={`px-4 py-2 hover:bg-white/5 transition-colors flex items-center gap-2 text-[10px] font-bold tracking-wider ${isPlayingAudio ? 'text-amber-500 animate-pulse' : 'text-neutral-400 hover:text-white'}`}
-                                  >
-                                      <SpeakerIcon className="w-3.5 h-3.5" />
-                                      {isPlayingAudio ? "PLAYING..." : "LISTEN"}
-                                  </button>
                                   <button onClick={handleCopy} className="px-4 py-2 hover:bg-white/5 text-neutral-400 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-bold tracking-wider">
                                       {copyStatus ? <CheckIcon className="w-3.5 h-3.5 text-green-500" /> : <CopyIcon className="w-3.5 h-3.5" />}
                                       {copyStatus ? "COPIED" : "COPY"}
