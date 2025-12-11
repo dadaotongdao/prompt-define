@@ -320,8 +320,8 @@ const WRITING_TARGET_MODELS = [
 const DEFAULT_TEMPLATES: TemplateItem[] = [
   {
     id: "tpl_default_1",
-    name: "Cyberpunk Portrait (Nano Banana)",
-    content: "Portrait of a futuristic cyborg with neon accents, rain-slicked streets background, 85mm lens, f/1.8, bokeh, cinematic lighting, hyper-realistic, 8k --ar 9:16",
+    name: "Cyberpunk Portrait",
+    content: "Generate a portrait of a futuristic cyborg with neon accents, rain-slicked streets background, 85mm lens, f/1.8, bokeh, cinematic lighting, hyper-realistic, 8k --ar 9:16",
     domain: DomainId.IMAGE,
     category: "Art",
     timestamp: Date.now()
@@ -329,7 +329,7 @@ const DEFAULT_TEMPLATES: TemplateItem[] = [
   {
     id: "tpl_default_2",
     name: "React Senior Engineer",
-    content: "Act as a Senior React Developer. Write clean, efficient, and accessible code. Use functional components, hooks, and TypeScript. Prioritize performance and error handling. Explain your reasoning briefly before coding.",
+    content: "Act as a Senior React Developer. Write clean, efficient, and accessible code. Use functional components, hooks, and TypeScript. Prioritize performance and error handling. Explain your reasoning briefly before coding. Task: Create a reusable DataGrid component.",
     domain: DomainId.CODING,
     category: "Development",
     timestamp: Date.now()
@@ -337,7 +337,7 @@ const DEFAULT_TEMPLATES: TemplateItem[] = [
   {
     id: "tpl_default_3",
     name: "SEO Blog Post Writer",
-    content: "Write a comprehensive, SEO-optimized blog post about [Topic]. Use H2 and H3 headers. Include a compelling introduction, detailed body paragraphs with examples, and a conclusion. Target keywords: [Keywords]. Tone: Informative and engaging.",
+    content: "Write a comprehensive, SEO-optimized blog post about 'The Future of AI in 2025'. Use H2 and H3 headers. Include a compelling introduction, detailed body paragraphs with examples, and a conclusion. Target keywords: AI Agents, Generative Video, Automation. Tone: Informative and engaging.",
     domain: DomainId.WRITING,
     category: "Marketing",
     timestamp: Date.now()
@@ -401,6 +401,8 @@ type TemplateItem = {
   category: string;
   timestamp: number;
 };
+
+type ToastType = 'success' | 'error';
 
 // --- Helper Functions ---
 const cleanAndParseJSON = (str: string, defaultVal: any = {}) => {
@@ -727,6 +729,7 @@ const App = () => {
   const [copyStatus, setCopyStatus] = useState(false);
   const [saveStatus, setSaveStatus] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<ToastType>('success');
   
   // Sidebar State
   const [showSidebar, setShowSidebar] = useState(false);
@@ -767,6 +770,9 @@ const App = () => {
   const [templateContentToSave, setTemplateContentToSave] = useState("");
   const [templateError, setTemplateError] = useState("");
 
+  // Modal State for Clear History
+  const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
+
   // Reset model selection when domain changes to ensure valid model
   useEffect(() => {
     if (selectedDomain === DomainId.GENERAL) {
@@ -795,9 +801,11 @@ const App = () => {
     setSearchQuery("");
   }, [sidebarTab]);
 
-  // Clear assessment when result changes is no longer needed directly as we set centralized state,
-  // but if we re-run optimization, we should clear assessment and media.
-  // Handled in handleOptimize.
+  const showToast = (message: string, type: ToastType = 'success') => {
+      setToastMessage(message);
+      setToastType(type);
+      setTimeout(() => setToastMessage(""), 4000);
+  };
 
   const closeWelcome = () => {
       setShowWelcome(false);
@@ -854,6 +862,7 @@ const App = () => {
       
       setSaveStatus(true);
       setTimeout(() => setSaveStatus(false), 2000);
+      showToast("Prompt Saved to Library");
   };
 
   const openSaveTemplateModal = (content: string) => {
@@ -888,8 +897,7 @@ const App = () => {
     localStorage.setItem("promptRefineTemplates", JSON.stringify(newTemplates));
     setIsTemplateModalOpen(false);
     
-    setToastMessage("Template Saved Successfully!");
-    setTimeout(() => setToastMessage(""), 3000);
+    showToast("Template Created Successfully");
 
     setSidebarTab('templates');
     setShowSidebar(true);
@@ -919,10 +927,14 @@ const App = () => {
   };
 
   const clearHistory = () => {
-    if(confirm("Are you sure you want to clear your history?")) {
-        setHistory([]);
-        localStorage.removeItem("promptRefineHistory");
-    }
+    setIsClearHistoryModalOpen(true);
+  };
+
+  const confirmClearHistory = () => {
+      setHistory([]);
+      localStorage.removeItem("promptRefineHistory");
+      setIsClearHistoryModalOpen(false);
+      showToast("History Cleared", "success");
   };
 
   const deleteHistoryItem = (e: React.MouseEvent, id: string) => {
@@ -993,9 +1005,9 @@ const App = () => {
                 break;
             }
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Image generation failed:", error);
-        alert("Failed to generate image preview. Please try again.");
+        showToast("Image Generation Failed: " + (error.message || "Unknown error"), 'error');
     } finally {
         setIsGeneratingImage(false);
     }
@@ -1049,7 +1061,7 @@ const App = () => {
 
     } catch (error: any) {
         console.error("Video generation failed:", error);
-        alert(`Video generation failed: ${error.message}`);
+        showToast(`Video Generation Failed: ${error.message}`, 'error');
     } finally {
         setIsGeneratingVideo(false);
         setVideoProgress("");
@@ -1076,9 +1088,9 @@ const App = () => {
           
           setSessionData(prev => ({ ...prev, generatedMedia: { ...prev.generatedMedia, text: response.text || "No output." } }));
 
-      } catch (error) {
+      } catch (error: any) {
           console.error("Text simulation failed:", error);
-          alert("Simulation failed.");
+          showToast("Simulation Failed: " + error.message, 'error');
       } finally {
           setIsGeneratingText(false);
       }
@@ -1165,9 +1177,9 @@ const App = () => {
         setSessionData(prev => ({ ...prev, result: safeResult }));
         addToHistory(uploadedImage ? "[Image Upload]" : "[Video Analysis]", selectedDomain, safeResult, selectedModel);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Reverse engineering failed:", error);
-        alert("Failed to analyze. Please try again.");
+        showToast("Analysis Failed: " + (error.message || "Please check image format"), 'error');
     } finally {
         setIsAnalyzing(false);
     }
@@ -1236,6 +1248,7 @@ const App = () => {
 
           if (isServerError) {
               console.warn("Gemini Error, falling back to Gemini 2.5 Flash...", error);
+              showToast("Gemini 3 Busy, switching to Flash...", "error"); // Technically a warning
               const fallbackConfig = { 
                   model: 'gemini-2.5-flash',
                   contents: { parts: [{ text: `User Raw Input: "${userInput}"` }] },
@@ -1293,9 +1306,9 @@ const App = () => {
       setSessionData(prev => ({ ...prev, result: safeResult }));
       addToHistory(userInput, selectedDomain, safeResult, selectedModel);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error optimizing prompt:", error);
-      alert("Something went wrong. Please check your API key or try again.");
+      showToast("Optimization Failed: " + (error.message || "API Error"), 'error');
     } finally {
       setIsOptimizing(false);
     }
@@ -1389,7 +1402,7 @@ const App = () => {
 
     } catch (e: any) {
         console.error("Assessment failed", e);
-        alert(`Assessment failed: ${e.message || "Unknown error"}. Please try again later.`);
+        showToast("Assessment Failed: " + (e.message || "Network Error"), 'error');
     } finally {
         setIsAssessing(false);
     }
@@ -1400,6 +1413,7 @@ const App = () => {
       navigator.clipboard.writeText(sessionData.result.optimizedPrompt);
       setCopyStatus(true);
       setTimeout(() => setCopyStatus(false), 2000);
+      showToast("Prompt copied to clipboard");
     }
   };
 
@@ -1430,9 +1444,13 @@ const App = () => {
       
       {/* Toast Notification */}
       {toastMessage && (
-         <div className="fixed bottom-6 right-6 bg-emerald-500 text-black px-4 py-3 rounded-xl shadow-[0_0_30px_rgba(16,185,129,0.3)] z-50 animate-bounce flex items-center gap-3 font-bold text-sm border border-emerald-400">
+         <div className={`fixed bottom-6 right-6 px-4 py-3 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] z-50 animate-bounce flex items-center gap-3 font-bold text-sm border ${
+            toastType === 'error' 
+              ? 'bg-red-500 text-white border-red-400 shadow-red-500/20' 
+              : 'bg-emerald-500 text-black border-emerald-400 shadow-emerald-500/30'
+         }`}>
             <div className="bg-black/20 p-1 rounded-full">
-              <CheckIcon className="w-4 h-4" /> 
+              {toastType === 'error' ? <AlertIcon className="w-4 h-4" /> : <CheckIcon className="w-4 h-4" />}
             </div>
             {toastMessage}
          </div>
@@ -2053,6 +2071,30 @@ const App = () => {
            </div>
         </div>
       )}
+
+      {/* Clear History Confirmation Modal */}
+      {isClearHistoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in">
+           <div className="bg-neutral-900 border border-red-500/30 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-red-500 to-red-600"></div>
+              <div className="flex flex-col items-center text-center space-y-4">
+                 <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 mb-2">
+                    <TrashIcon className="w-6 h-6" />
+                 </div>
+                 <h3 className="text-lg font-bold text-white uppercase tracking-widest">Clear History?</h3>
+                 <p className="text-xs text-neutral-400 leading-relaxed px-4">
+                    This action is irreversible. All your local history logs and analysis data will be permanently deleted.
+                 </p>
+                 
+                 <div className="flex gap-3 mt-6 w-full">
+                    <button onClick={() => setIsClearHistoryModalOpen(false)} className="flex-1 py-3 rounded-lg border border-white/10 text-neutral-400 hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-widest">Cancel</button>
+                    <button onClick={confirmClearHistory} className="flex-1 py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-500 transition-colors text-xs uppercase tracking-widest shadow-lg shadow-red-600/20">Delete All</button>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
     </div>
   );
 };
