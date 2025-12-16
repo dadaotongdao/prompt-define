@@ -3,82 +3,134 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PromptRefine - Engineering Station</title>
+    <title>PromptRefine - Obsidian Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --obsidian-surface: rgba(18, 18, 20, 0.7);
+        --amber-primary: #f59e0b;
+        --amber-glow: rgba(245, 158, 11, 0.4);
+      }
+
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #050505;
+        background-color: #030303; /* Deepest black */
         color: #e5e5e5;
-        /* Subtle deep gradient mesh */
-        background-image: radial-gradient(circle at 50% 0%, #1a1a1e 0%, #050505 60%);
+        /* Subtle deep ambient light from top center */
+        background-image: radial-gradient(circle at 50% -20%, #1c1917 0%, #030303 45%);
         min-height: 100vh;
+        overflow: hidden; /* App-like feel */
       }
+      
+      /* Film Noise Texture Overlay - The "Soul" of V3.0 */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 50;
+        opacity: 0.035;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      }
+
       .font-mono {
         font-family: 'JetBrains Mono', monospace;
       }
       
-      /* Custom scrollbar - Slim & Sleek */
-      ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background-color: #3f3f46;
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background-color: #52525b;
-      }
+      /* Slim Scrollbar */
+      ::-webkit-scrollbar { width: 4px; height: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background-color: #262626; border-radius: 2px; }
+      ::-webkit-scrollbar-thumb:hover { background-color: #404040; }
       
-      /* Premium Glass Effect */
-      .glass-panel {
-        background: rgba(20, 20, 23, 0.4);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-      }
+      /* --- V3.0 OBSIDIAN CARD SYSTEM --- */
       
-      /* Inner highlight for depth */
-      .glass-panel::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        padding: 1px;
-        background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%); 
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        pointer-events: none;
+      .obsidian-card {
+        /* Base Material: Dark glass with gradient top-to-bottom */
+        background: linear-gradient(180deg, rgba(30, 30, 33, 0.6) 0%, rgba(10, 10, 12, 0.8) 100%);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        
+        /* The Art of 1px: Gradient border simulation using box-shadow */
+        box-shadow: 
+          inset 0 1px 0 0 rgba(255, 255, 255, 0.08), /* Top highlight (light hitting edge) */
+          inset 0 0 0 1px rgba(255, 255, 255, 0.03), /* Subtle overall border */
+          0 20px 40px -10px rgba(0, 0, 0, 0.8); /* Deep shadow */
+          
+        border-radius: 16px;
+        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        position: relative;
       }
 
-      /* Scanning Line Animation */
-      @keyframes scan {
-        0% { top: 0%; opacity: 0; }
-        10% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { top: 100%; opacity: 0; }
+      /* Levitation Physics */
+      .obsidian-card:hover {
+        transform: translateY(-4px); /* Lift up */
+        background: linear-gradient(180deg, rgba(40, 40, 45, 0.7) 0%, rgba(15, 15, 18, 0.9) 100%);
+        box-shadow: 
+          inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+          0 30px 60px -12px rgba(0, 0, 0, 0.9); /* Shadow diffuses as object lifts */
       }
-      .scan-line {
-        position: absolute;
-        left: 0;
-        width: 100%;
-        height: 2px;
-        background: linear-gradient(to right, transparent, #f59e0b, transparent);
-        animation: scan 3s linear infinite;
-        box-shadow: 0 0 10px #f59e0b;
+
+      /* --- ACTIVE STATE: THE ENERGY SOURCE --- */
+      
+      /* When a card is active */
+      .obsidian-card.active {
+        background: linear-gradient(180deg, rgba(35, 35, 38, 0.8) 0%, rgba(15, 10, 5, 0.9) 100%);
+        box-shadow: 
+          inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+          inset 0 0 0 1px rgba(245, 158, 11, 0.4), /* Amber Border */
+          inset 0 -20px 40px -10px rgba(245, 158, 11, 0.1); /* Inner Amber Glow from bottom */
       }
       
-      .amber-glow {
-        box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.15);
-        border-color: rgba(245, 158, 11, 0.5);
+      /* The Ambient Light Bar (Bottom Energy Source) */
+      .obsidian-card.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 3px;
+        background: #f59e0b;
+        box-shadow: 0 -4px 15px 1px #f59e0b; /* Upward casting light */
+        border-radius: 4px 4px 0 0;
+        animation: energyPulse 3s infinite ease-in-out;
       }
+
+      @keyframes energyPulse {
+        0%, 100% { opacity: 0.8; box-shadow: 0 -4px 15px 1px #f59e0b; }
+        50% { opacity: 1; box-shadow: 0 -4px 25px 4px #f59e0b; }
+      }
+
+      /* Typography Glows */
+      .text-glow {
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+      }
+      .text-glow-amber {
+        text-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+      }
+
+      /* Diffusion Spot for icons */
+      .diffusion-spot {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        background: #f59e0b;
+        filter: blur(40px);
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .obsidian-card.active .diffusion-spot {
+        opacity: 0.15;
+      }
+
     </style>
   <script type="importmap">
 {
