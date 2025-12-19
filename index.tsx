@@ -60,7 +60,7 @@ type InputMode = 'visual' | 'text';
 type ProcessStage = 'idle' | 'analyzing' | 'ready_to_render' | 'rendering' | 'complete' | 'error';
 
 // Standard model list for text tasks
-const TEXT_MODELS = ["GPT-5.2", "Gemini 3 Pro", "Claude 4.5 Opus", "Claude 4.5 Sonnet", "Grok 4.1"];
+const TEXT_MODELS = ["Gemini 3 Flash Preview", "GPT-5.2", "Gemini 3 Pro", "Claude 4.5 Opus", "Claude 4.5 Sonnet", "Grok 4.1"];
 
 export const DOMAIN_CONFIG: Record<Domain, {
   label: string;
@@ -97,7 +97,7 @@ export const DOMAIN_CONFIG: Record<Domain, {
   code: {
     label: 'Software Eng.',
     icon: Icons.Code,
-    defaultModel: 'Claude 4.5 Opus',
+    defaultModel: 'Gemini 3 Flash Preview',
     models: TEXT_MODELS,
     capabilityText: "Logic & Arch: Clean Code, Design Patterns, Security, Optimization.",
     placeholder: "// Paste code snippet, error log, or feature requirement..."
@@ -105,7 +105,7 @@ export const DOMAIN_CONFIG: Record<Domain, {
   general: {
     label: 'General Assistant',
     icon: Icons.Sparkles,
-    defaultModel: 'GPT-5.2',
+    defaultModel: 'Gemini 3 Flash Preview',
     models: TEXT_MODELS,
     capabilityText: "Reasoning: Chain of Thought, Fact-Checking, Planning, Analysis.",
     placeholder: "// Ask complex reasoning question or general inquiry..."
@@ -113,6 +113,7 @@ export const DOMAIN_CONFIG: Record<Domain, {
 };
 
 const MODEL_PROFILES: Record<string, string> = {
+  "Gemini 3 Flash Preview": "# ARCHITECTURE: Gemini 3 Flash Preview (KDP-v3.1-FLS)\n- **Kernel Status**: Optimal Log Processor.\n- **Constraint Protocol**: Mandatory XML Encapsulation. Uses <instruction_protocol>, <task>, <constraints>, <context>, and <thought_process>.\n- **Heuristics**: Input Suffix optimization (Core instructions at the end). Instruction Mirroring for long contexts.\n- **CoT Activation**: Use <thinking> tags for System 2 reasoning.",
   "GPT-5.2": "# ARCHITECTURE: GPT-5.2\n- **Strength**: High reasoning, instruction following.\n- **Strategy**: Chain-of-Thought, Validation Steps.",
   "Claude 4.5 Sonnet": "# ARCHITECTURE: Claude 4.5 Sonnet\n- **Strength**: Nuanced writing, rapid coding, visual analysis.\n- **Preference**: XML Tags <constraint>, Socratic Method.",
   "Claude 4.5 Opus": "# ARCHITECTURE: Claude 4.5 Opus\n- **Strength**: Deep architectural planning, complex system design.\n- **Preference**: Comprehensive context analysis, slow thinking.",
@@ -127,7 +128,8 @@ const DOMAIN_PERSONAS: Partial<Record<Domain, string>> = {
   code: "ROLE: Principal Software Architect. OUTPUT: Clean, Modular, Secure Code. Follow SOLID principles.",
   writing: "ROLE: Best-Selling Author & Editor. OUTPUT: Show, don't tell. Focus on pacing, tone, and sensory details.",
   image: "ROLE: AI Art Director. OUTPUT: Subject, Environment, Lighting, Style, Composition, Technical Parameters. If user provides an image, analyze it for style transfer or reverse engineering.",
-  video: "ROLE: Cinematographer. OUTPUT: Camera Movement (Pan/Tilt/Zoom), Subject Action, Atmosphere, Film Stock."
+  video: "ROLE: Cinematographer. OUTPUT: Camera Movement (Pan/Tilt/Zoom), Subject Action, Atmosphere, Film Stock.",
+  general: "ROLE: Senior Logic Architect. OUTPUT: Highly structured, logical frameworks."
 };
 
 interface SavedTemplate {
@@ -176,6 +178,17 @@ const FormattedOutput = memo(({ text }: { text: string }) => {
       {lines.map((line, i) => {
         if (line.startsWith('## ') || line.startsWith('# ')) {
           return <div key={i} className="text-amber-500 font-bold mt-4 mb-2 tracking-wide uppercase border-l-2 border-amber-500/50 pl-3">{line.replace(/^#+ /, '')}</div>;
+        }
+        // Basic Syntax Highlighting for XML/Tags
+        if (line.includes('<') && line.includes('>')) {
+          const parts = line.split(/(<[^>]+>)/g);
+          return (
+            <div key={i} className="min-h-[1em]">
+               {parts.map((p, j) => (
+                 p.startsWith('<') ? <span key={j} className="text-amber-400/80 font-bold">{p}</span> : p
+               ))}
+            </div>
+          );
         }
         const parts = line.split(/(\*\*.*?\*\*)/g);
         return (
@@ -566,7 +579,7 @@ function App() {
   
   // Data State
   const [selectedDomain, setSelectedDomain] = useState<Domain>('general');
-  const [selectedModel, setSelectedModel] = useState('Grok 4.1');
+  const [selectedModel, setSelectedModel] = useState('Gemini 3 Flash Preview');
   const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
   
   // Execution State
@@ -603,7 +616,7 @@ function App() {
 
     try {
       const ai = new GoogleGenAI({ apiKey: apiKey });
-      const modelName = 'gemini-2.5-flash';
+      const modelName = 'gemini-3-flash-preview'; // Use latest flash for optimization speed
       let parts = [];
       
       const persona = DOMAIN_PERSONAS[selectedDomain] || "Expert AI Assistant";
@@ -641,8 +654,21 @@ function App() {
          ## 🎨 FINAL PROMPT
          (Write the cohesive, comma-separated prompt here in English, optimized for Gemini Nano Banana Pro)
          `;
-      } else if (images.length > 0 && text.trim()) {
-         task = "Task: Optimize the user's text prompt using the images as style/context references. Output a cohesive prompt.";
+      } else if (selectedDomain === 'general' || selectedDomain === 'writing' || selectedDomain === 'code') {
+         task = `
+         TASK: ADVANCED PROMPT OPTIMIZATION (XML SCHEMATIZED).
+         Convert the user's natural language input into a highly structured, professional prompt using XML tags as the primary container.
+         
+         REFINED PROTOCOL (KDP-v3.1-FLS):
+         1. Use <instruction_protocol> as the root.
+         2. Enclose the core objective in <task>.
+         3. Define strict rules in <constraints>.
+         4. Provide background data in <context>.
+         5. Mandatory: Add <thought_process> at the beginning of the generated instructions to force CoT in the target model.
+         6. If appropriate, define a <response_schema> (JSON preferred) to ensure deterministic output.
+
+         OUTPUT: Return ONLY the optimized XML prompt block.
+         `;
       } else {
          task = "Task: Optimize input. Output specific prompt block.";
       }
@@ -665,7 +691,11 @@ function App() {
       const result = await ai.models.generateContent({
         model: modelName,
         contents: { parts },
-        config: { systemInstruction: sysInstr, tools }
+        config: { 
+          systemInstruction: sysInstr, 
+          tools,
+          thinkingConfig: { thinkingBudget: useDeep ? 10000 : 0 }
+        }
       });
 
       const outputText = result.text || "No output generated.";
@@ -742,7 +772,7 @@ function App() {
     try {
        const ai = new GoogleGenAI({ apiKey: apiKey });
        const res = await ai.models.generateContent({
-         model: 'gemini-2.5-flash',
+         model: 'gemini-3-flash-preview',
          contents: `Analyze viability: "${text.substring(0, 300)}...". JSON: {score(0-100), potential, target_sectors[], monetization[], risk_factors[], summary}`,
          config: { responseMimeType: 'application/json' }
        });
@@ -875,8 +905,8 @@ function App() {
                    <div className="flex items-center justify-between pl-1">
                       <span className="text-[10px] font-mono text-amber-500 tracking-[0.2em] shadow-amber-500/20 drop-shadow-[0_0_5px_rgba(245,158,11,0.5)]">03 // OUTPUT_STREAM</span>
                       <div className="flex gap-4">
-                        <button onClick={() => { setTempContentToSave(refinedPrompt); setIsSaveModalOpen(true); }} className="text-[10px] font-bold text-neutral-600 hover:text-white flex items-center gap-1.5 uppercase tracking-wider transition-colors"><Icons.Save className="w-3 h-3" /> Save</button>
-                        <button onClick={() => navigator.clipboard.writeText(refinedPrompt)} className="text-[10px] font-bold text-neutral-600 hover:text-white flex items-center gap-1.5 uppercase tracking-wider transition-colors"><Icons.Copy className="w-3 h-3" /> Copy</button>
+                        <button onClick={() => { setTempContentToSave(refinedPrompt); setIsSaveModalOpen(true); }} className="text-[10px] font-bold text-neutral-600 hover:text-white flex items-center gap-1.5 uppercase tracking-wider transition-colors"><Icons.Save className="w-3 h-3" /> SAVE</button>
+                        <button onClick={() => navigator.clipboard.writeText(refinedPrompt)} className="text-[10px] font-bold text-neutral-600 hover:text-white flex items-center gap-1.5 uppercase tracking-wider transition-colors"><Icons.Copy className="w-3 h-3" /> COPY</button>
                       </div>
                    </div>
 
@@ -907,7 +937,7 @@ function App() {
                             {refinedPrompt ? <FormattedOutput text={refinedPrompt} /> : (
                                <div className="text-neutral-800 flex flex-col items-center justify-center h-full gap-4 opacity-50">
                                   <Icons.Terminal className="w-12 h-12" />
-                                  <span className="text-[10px] tracking-[0.3em] font-bold">AWAITING OUTPUT</span>
+                                  <span className="text-[10px] tracking-[0.3em] font-bold uppercase">Awaiting Output Stream</span>
                                </div>
                             )}
                          </div>
