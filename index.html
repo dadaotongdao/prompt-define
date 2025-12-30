@@ -5,25 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PromptRefine - Obsidian Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
       :root {
-        --obsidian-surface: rgba(18, 18, 20, 0.7);
-        --amber-primary: #f59e0b;
-        --amber-glow: rgba(245, 158, 11, 0.4);
+        --bg-deep: #050505;
+        --bg-card: #0A0A0A;
+        --border-subtle: rgba(255, 255, 255, 0.08);
+        --border-highlight: rgba(255, 255, 255, 0.15);
+        --amber-primary: #F59E0B;
+        --amber-dim: rgba(245, 158, 11, 0.1);
       }
 
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #030303; /* Deepest black */
+        background-color: var(--bg-deep);
         color: #e5e5e5;
-        /* Subtle deep ambient light from top center */
-        background-image: radial-gradient(circle at 50% -20%, #1c1917 0%, #030303 45%);
+        /* Subtle deep ambient light */
+        background-image: radial-gradient(circle at 50% -20%, #1a1a1a 0%, #000000 50%);
         min-height: 100vh;
-        overflow: hidden; /* App-like feel */
+        overflow: hidden;
       }
       
-      /* Film Noise Texture Overlay - The "Soul" of V3.0 */
+      /* Film Noise Texture - Retained but subtler */
       body::before {
         content: "";
         position: fixed;
@@ -33,102 +36,83 @@
         height: 100%;
         pointer-events: none;
         z-index: 50;
-        opacity: 0.035;
+        opacity: 0.02;
         background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
       }
 
-      .font-mono {
-        font-family: 'JetBrains Mono', monospace;
-      }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
       
-      /* Slim Scrollbar */
-      ::-webkit-scrollbar { width: 4px; height: 4px; }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background-color: #262626; border-radius: 2px; }
-      ::-webkit-scrollbar-thumb:hover { background-color: #404040; }
+      ::-webkit-scrollbar-thumb { background-color: #333; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background-color: #555; }
       
-      /* --- V3.0 OBSIDIAN CARD SYSTEM --- */
-      
+      /* --- OBSIDIAN V3.5 CARD SYSTEM --- */
       .obsidian-card {
-        /* Base Material: Dark glass with gradient top-to-bottom */
-        background: linear-gradient(180deg, rgba(30, 30, 33, 0.6) 0%, rgba(10, 10, 12, 0.8) 100%);
-        backdrop-filter: blur(24px);
-        -webkit-backdrop-filter: blur(24px);
-        
-        /* The Art of 1px: Gradient border simulation using box-shadow */
-        box-shadow: 
-          inset 0 1px 0 0 rgba(255, 255, 255, 0.08), /* Top highlight (light hitting edge) */
-          inset 0 0 0 1px rgba(255, 255, 255, 0.03), /* Subtle overall border */
-          0 20px 40px -10px rgba(0, 0, 0, 0.8); /* Deep shadow */
-          
-        border-radius: 16px;
-        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px; /* Sharper radius */
         position: relative;
+        overflow: hidden;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
       }
 
-      /* Levitation Physics */
-      .obsidian-card:hover {
-        transform: translateY(-4px); /* Lift up */
-        background: linear-gradient(180deg, rgba(40, 40, 45, 0.7) 0%, rgba(15, 15, 18, 0.9) 100%);
-        box-shadow: 
-          inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
-          inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-          0 30px 60px -12px rgba(0, 0, 0, 0.9); /* Shadow diffuses as object lifts */
-      }
-
-      /* --- ACTIVE STATE: THE ENERGY SOURCE --- */
-      
-      /* When a card is active */
-      .obsidian-card.active {
-        background: linear-gradient(180deg, rgba(35, 35, 38, 0.8) 0%, rgba(15, 10, 5, 0.9) 100%);
-        box-shadow: 
-          inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-          inset 0 0 0 1px rgba(245, 158, 11, 0.4), /* Amber Border */
-          inset 0 -20px 40px -10px rgba(245, 158, 11, 0.1); /* Inner Amber Glow from bottom */
-      }
-      
-      /* The Ambient Light Bar (Bottom Energy Source) */
-      .obsidian-card.active::after {
-        content: '';
+      /* Spotlight Effect Logic */
+      .obsidian-card::before {
+        content: "";
         position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 40px;
-        height: 3px;
-        background: #f59e0b;
-        box-shadow: 0 -4px 15px 1px #f59e0b; /* Upward casting light */
-        border-radius: 4px 4px 0 0;
-        animation: energyPulse 3s infinite ease-in-out;
-      }
-
-      @keyframes energyPulse {
-        0%, 100% { opacity: 0.8; box-shadow: 0 -4px 15px 1px #f59e0b; }
-        50% { opacity: 1; box-shadow: 0 -4px 25px 4px #f59e0b; }
-      }
-
-      /* Typography Glows */
-      .text-glow {
-        text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-      }
-      .text-glow-amber {
-        text-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
-      }
-
-      /* Diffusion Spot for icons */
-      .diffusion-spot {
-        position: absolute;
-        width: 60px;
-        height: 60px;
-        background: #f59e0b;
-        filter: blur(40px);
+        top: 0; left: 0; right: 0; bottom: 0;
+        border-radius: 12px;
+        padding: 1px;
+        background: radial-gradient(
+          600px circle at var(--mouse-x, 0) var(--mouse-y, 0),
+          rgba(255, 255, 255, 0.15),
+          transparent 40%
+        );
+        -webkit-mask: 
+          linear-gradient(#fff 0 0) content-box, 
+          linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
         opacity: 0;
-        transition: opacity 0.5s ease;
+        transition: opacity 0.3s;
         pointer-events: none;
-        z-index: 0;
+        z-index: 2;
       }
-      .obsidian-card.active .diffusion-spot {
-        opacity: 0.15;
+
+      .obsidian-card:hover {
+        border-color: var(--border-highlight);
+        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.8);
+      }
+      
+      .obsidian-card:hover::before {
+        opacity: 1;
+      }
+
+      /* Active State */
+      .obsidian-card.active {
+        background-color: rgba(245, 158, 11, 0.03);
+        border-color: rgba(245, 158, 11, 0.4);
+        box-shadow: 0 0 30px -10px rgba(245, 158, 11, 0.1);
+      }
+
+      /* Typography Utilities */
+      .text-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 600;
+        color: #737373;
+      }
+
+      /* Animations */
+      @keyframes floatUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-enter {
+        animation: floatUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
       }
 
     </style>
@@ -138,8 +122,10 @@
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.561.0"
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0?external=react,react-dom",
+    "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom"
   }
 }
 </script>
